@@ -63,9 +63,21 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
     let mounted = true;
 
+    // Salvavidas: si nada termina en 7s, sal del estado de carga igualmente
+    const killSwitch = setTimeout(() => {
+      if (mounted) {
+        console.warn("AuthProvider killSwitch: forzando salir de loading");
+        setLoading(false);
+      }
+    }, 7000);
+
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const timeout = new Promise<{ data: { session: Session | null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 5000)
+        );
+        const { data } = await Promise.race([sessionPromise, timeout]);
         if (!mounted) return;
         setSession(data.session ?? null);
         setUser(data.session?.user ?? null);
@@ -75,6 +87,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       } catch (e) {
         console.error("Error obteniendo sesión:", e);
       } finally {
+        clearTimeout(killSwitch);
         if (mounted) setLoading(false);
       }
     })();
