@@ -81,8 +81,8 @@ export default function Dashboard() {
         <Stat label="Equipo activo" value={activos.length} hint="trabajadores" accent="brand" />
         <Stat
           label="Hoy fuera"
-          value={hoyAusentes.length}
-          hint={`${activos.length ? Math.round((hoyAusentes.length / activos.length) * 100) : 0}% del equipo`}
+          value={new Set(hoyAusentes.map((a) => a.trabajador_id)).size}
+          hint={`${activos.length ? Math.round((new Set(hoyAusentes.map((a) => a.trabajador_id)).size / activos.length) * 100) : 0}% del equipo`}
           accent="amber"
         />
         <Stat

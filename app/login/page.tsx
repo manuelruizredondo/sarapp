@@ -17,25 +17,17 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    // CINTURÓN DE SEGURIDAD: ocurra lo que ocurra, en 12s salimos de loading
-    const safety = setTimeout(() => {
-      console.warn("[login] safety timeout: forzando salir de loading");
-      setLoading(false);
-    }, 12000);
+    // Cinturón de seguridad: ocurra lo que ocurra, en 12s salimos de loading
+    const safety = setTimeout(() => setLoading(false), 12000);
 
     try {
-      console.log("[login] enviando signInWithPassword…");
-      const t0 = Date.now();
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log(`[login] respuesta en ${Date.now() - t0}ms`, { hasData: !!data?.session, error });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setError(error.message);
         return;
       }
       router.replace("/");
     } catch (err: any) {
-      console.error("[login] excepción:", err);
       setError(err?.message || "Error de conexión");
     } finally {
       clearTimeout(safety);
