@@ -178,13 +178,21 @@ export default function AusenciasPage() {
     }
   }
 
-  async function onDelete(id: string) {
+  async function onDelete(a: Ausencia) {
+    if (a.aprobado) {
+      alert("Esta ausencia está validada 🚩. Quita la validación antes de borrarla.");
+      return;
+    }
     if (!confirm("¿Eliminar esta ausencia?")) return;
-    await deleteAusencia(id);
+    await deleteAusencia(a.id);
     await reload();
   }
 
   function startEdit(a: Ausencia) {
+    if (a.aprobado) {
+      alert("Esta ausencia está validada 🚩. Quita la validación antes de editarla.");
+      return;
+    }
     setForm({
       id: a.id,
       trabajador_id: a.trabajador_id,
@@ -340,8 +348,27 @@ export default function AusenciasPage() {
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {isAdmin && (
                         <>
-                          <button className="btn-ghost mr-1" onClick={() => startEdit(a)}>Editar</button>
-                          <button className="btn-ghost" style={{ color: "#E5484D" }} onClick={() => onDelete(a.id)}>Borrar</button>
+                          <button
+                            className="btn-ghost mr-1"
+                            onClick={() => startEdit(a)}
+                            disabled={a.aprobado}
+                            title={a.aprobado ? "Quita la validación 🚩 antes de editar" : "Editar ausencia"}
+                            style={a.aprobado ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+                          >
+                            {a.aprobado ? "🔒 " : ""}Editar
+                          </button>
+                          <button
+                            className="btn-ghost"
+                            style={a.aprobado
+                              ? { color: "#E5484D", opacity: 0.4, cursor: "not-allowed" }
+                              : { color: "#E5484D" }
+                            }
+                            onClick={() => onDelete(a)}
+                            disabled={a.aprobado}
+                            title={a.aprobado ? "Quita la validación 🚩 antes de borrar" : "Borrar ausencia"}
+                          >
+                            Borrar
+                          </button>
                         </>
                       )}
                     </td>

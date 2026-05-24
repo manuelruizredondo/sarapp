@@ -75,6 +75,25 @@ export async function createAusencia(a: Omit<Ausencia, "id">) {
 
 export async function updateAusencia(id: string, patch: Partial<Ausencia>) {
   if (!supabase) throw new Error("Supabase no configurado");
+
+  // Cinturón cliente: si la ausencia ya está aprobada y el patch intenta
+  // cambiar algo que NO sea desvalidarla, lo bloqueamos aquí.
+  const { data: actual, error: e1 } = await supabase
+    .from("ausencias")
+    .select("aprobado")
+    .eq("id", id)
+    .single();
+  if (e1) throw e1;
+
+  if (actual?.aprobado) {
+    const camposCambiados = Object.keys(patch).filter((k) => k !== "aprobado");
+    if (camposCambiados.length > 0 && patch.aprobado !== false) {
+      throw new Error(
+        "Esta ausencia está validada. Quita la validación 🚩 antes de modificar cualquier campo."
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from("ausencias")
     .update(patch)
@@ -87,6 +106,20 @@ export async function updateAusencia(id: string, patch: Partial<Ausencia>) {
 
 export async function deleteAusencia(id: string) {
   if (!supabase) throw new Error("Supabase no configurado");
+
+  // Cinturón cliente: no permitimos borrar ausencias validadas
+  const { data: actual, error: e1 } = await supabase
+    .from("ausencias")
+    .select("aprobado")
+    .eq("id", id)
+    .single();
+  if (e1) throw e1;
+  if (actual?.aprobado) {
+    throw new Error(
+      "Esta ausencia está validada. Quita la validación 🚩 antes de borrarla."
+    );
+  }
+
   const { error } = await supabase.from("ausencias").delete().eq("id", id);
   if (error) throw error;
 }

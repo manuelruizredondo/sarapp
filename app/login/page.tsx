@@ -16,16 +16,29 @@ export default function LoginPage() {
     if (!supabase) return;
     setError(null);
     setLoading(true);
+
+    // CINTURÓN DE SEGURIDAD: ocurra lo que ocurra, en 12s salimos de loading
+    const safety = setTimeout(() => {
+      console.warn("[login] safety timeout: forzando salir de loading");
+      setLoading(false);
+    }, 12000);
+
     try {
-      // Limpia cualquier sesión previa por si hay tokens caducados
-      try { await supabase.auth.signOut(); } catch { /* ignora */ }
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log("[login] enviando signInWithPassword…");
+      const t0 = Date.now();
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log(`[login] respuesta en ${Date.now() - t0}ms`, { hasData: !!data?.session, error });
+
       if (error) {
         setError(error.message);
         return;
       }
       router.replace("/");
+    } catch (err: any) {
+      console.error("[login] excepción:", err);
+      setError(err?.message || "Error de conexión");
     } finally {
+      clearTimeout(safety);
       setLoading(false);
     }
   }
