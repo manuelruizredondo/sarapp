@@ -43,8 +43,17 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
 
   const reloadPerfil = useCallback(async () => {
-    const p = await meTrabajador();
-    setPerfil(p);
+    try {
+      // Timeout para que un fallo de Supabase no congele la app
+      const p = await Promise.race<Promise<Trabajador | null>>([
+        meTrabajador(),
+        new Promise<Trabajador | null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]);
+      setPerfil(p);
+    } catch (e) {
+      console.error("Error cargando perfil:", e);
+      setPerfil(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -54,13 +63,21 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      setSession(data.session ?? null);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) await reloadPerfil();
-      setLoading(false);
-    });
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(data.session ?? null);
+        setUser(data.session?.user ?? null);
+        if (data.session?.user) {
+          await reloadPerfil();
+        }
+      } catch (e) {
+        console.error("Error obteniendo sesión:", e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, s) => {
       setSession(s ?? null);
