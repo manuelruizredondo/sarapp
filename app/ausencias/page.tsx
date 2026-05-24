@@ -231,7 +231,7 @@ export default function AusenciasPage() {
   return (
     <div>
       <PageHeader
-        title="Ausencias"
+        title="Registro de ausencias"
         subtitle="Vacaciones, bajas médicas, permisos y formación"
         actions={
           <div className="flex gap-2">
@@ -283,10 +283,10 @@ export default function AusenciasPage() {
           <div className="p-5">
             <EmptyState
               icon="🏖️"
-              title="No hay ausencias"
+              title="No hay registros"
               hint={filtroTipo !== "todos" || filtroTrabajador !== "todos"
                 ? "Prueba a quitar los filtros."
-                : "Cuando registres la primera ausencia aparecerá aquí."}
+                : "Cuando registres las primeras vacaciones o permisos aparecerán aquí."}
             />
           </div>
         ) : (

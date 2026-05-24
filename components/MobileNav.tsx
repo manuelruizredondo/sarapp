@@ -11,7 +11,7 @@ const ITEMS: Item[] = [
   { href: "/",             label: "Hoy",         icon: "🏠" },
   { href: "/calendario",   label: "Calendario",  icon: "📅" },
   { href: "/resumen",      label: "Semanas",     icon: "🗓️" },
-  { href: "/ausencias",    label: "Ausencias",   icon: "🏖️" },
+  { href: "/ausencias",    label: "Registro de ausencias", icon: "🏖️" },
   { href: "/asistencia",   label: "Asistencia",  icon: "✅", adminOnly: true },
   { href: "/trabajadores", label: "Trabajadores",icon: "👥", adminOnly: true },
   { href: "/festivos",     label: "Festivos",    icon: "🎉", adminOnly: true },
