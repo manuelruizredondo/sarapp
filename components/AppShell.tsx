@@ -1,6 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
+import MobileNav from "./MobileNav";
 import SupabaseBanner from "./SupabaseBanner";
 import { useAuth } from "./AuthProvider";
 
@@ -47,9 +48,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
-      <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
+      <MobileNav />
+      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
         <SupabaseBanner />
         {children}
       </main>

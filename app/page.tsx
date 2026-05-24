@@ -5,6 +5,7 @@ import {
   listAusenciasRango,
   listTrabajadores,
 } from "@/lib/data";
+import Link from "next/link";
 import {
   Ausencia,
   Trabajador,
@@ -13,10 +14,13 @@ import {
   TIPO_DOT,
   COLOR_DEFAULT,
 } from "@/lib/types";
+import { useAuth } from "@/components/AuthProvider";
 import { fmt, toISO, incluyeFecha, diasEntre } from "@/lib/dates";
 import { addDays } from "date-fns";
 
 export default function Dashboard() {
+  const { perfil } = useAuth();
+  const isAdmin = perfil?.rol === "admin";
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,12 +78,12 @@ export default function Dashboard() {
 
       {/* Tarjetas resumen */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Stat label="Equipo activo" value={activos.length} hint="trabajadores" />
+        <Stat label="Equipo activo" value={activos.length} hint="trabajadores" accent="brand" />
         <Stat
           label="Hoy fuera"
           value={hoyAusentes.length}
           hint={`${activos.length ? Math.round((hoyAusentes.length / activos.length) * 100) : 0}% del equipo`}
-          accent="rose"
+          accent="amber"
         />
         <Stat
           label="De vacaciones"
@@ -92,6 +96,33 @@ export default function Dashboard() {
           accent="rose"
         />
       </div>
+
+      {/* Solicitudes pendientes de validar (solo admin) */}
+      {isAdmin && (() => {
+        const pendientes = ausencias.filter((a) => !a.aprobado);
+        if (pendientes.length === 0) return null;
+        return (
+          <section
+            className="card p-4 mb-6 flex items-center justify-between gap-3"
+            style={{ borderLeft: "4px solid #F5B700", background: "#FFFCEF" }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏳</span>
+              <div>
+                <div className="font-semibold" style={{ color: "#062E73" }}>
+                  {pendientes.length} ausencia{pendientes.length === 1 ? "" : "s"} pendiente{pendientes.length === 1 ? "" : "s"} de validar
+                </div>
+                <div className="text-xs" style={{ color: "#7B8794" }}>
+                  Revísalas y márcalas con la 🚩 cuando estén aprobadas.
+                </div>
+              </div>
+            </div>
+            <Link href="/ausencias" className="btn-primary text-sm whitespace-nowrap">
+              Revisar
+            </Link>
+          </section>
+        );
+      })()}
 
       {/* Cobertura por departamento */}
       {(() => {
@@ -151,15 +182,22 @@ export default function Dashboard() {
                 <li key={a.id} className="py-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className="h-3 w-3 rounded-full border border-slate-200 shrink-0"
-                      style={{ backgroundColor: t?.color || COLOR_DEFAULT }}
+                      className="h-3 w-3 rounded-full shrink-0"
+                      style={{ backgroundColor: t?.color || COLOR_DEFAULT, border: "1px solid #E5EAF2" }}
                     />
                     <span className={"h-2 w-2 rounded-full " + TIPO_DOT[a.tipo]} title={TIPO_LABEL[a.tipo]} />
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">
+                      <div className="font-medium text-sm truncate flex items-center gap-1.5">
                         {t ? `${t.nombre} ${t.apellidos ?? ""}`.trim() : "—"}
+                        {a.aprobado ? (
+                          <span title="Validada">🚩</span>
+                        ) : (
+                          <span className="badge text-[10px]" style={{ background: "#FFF8E1", color: "#7a5d00", borderColor: "#F5B700" }}>
+                            Pendiente
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-500 truncate">
+                      <div className="text-xs truncate" style={{ color: "#7B8794" }}>
                         {t?.puesto ?? ""} {t?.departamento ? `· ${t.departamento}` : ""}
                       </div>
                     </div>
@@ -168,7 +206,7 @@ export default function Dashboard() {
                     <span className={"badge " + TIPO_COLOR[a.tipo]}>
                       {TIPO_LABEL[a.tipo]}
                     </span>
-                    <span className="text-slate-500 whitespace-nowrap">
+                    <span className="whitespace-nowrap" style={{ color: "#7B8794" }}>
                       {fmt(a.fecha_inicio, "dd/MM")} – {fmt(a.fecha_fin, "dd/MM")}
                       {" · "}
                       {diasEntre(a.fecha_inicio, a.fecha_fin)}d
@@ -224,25 +262,25 @@ function Stat({
   label,
   value,
   hint,
-  accent = "slate",
+  accent = "ink",
 }: {
   label: string;
   value: number;
   hint?: string;
-  accent?: "slate" | "rose" | "emerald" | "amber" | "brand";
+  accent?: "ink" | "rose" | "emerald" | "amber" | "brand";
 }) {
   const accents: Record<string, string> = {
-    slate: "text-slate-900",
-    rose: "text-rose-600",
-    emerald: "text-emerald-600",
-    amber: "text-amber-600",
-    brand: "text-brand-600",
+    ink: "#1F2937",
+    rose: "#E5484D",
+    emerald: "#16C784",
+    amber: "#F5B700",
+    brand: "#062E73",
   };
   return (
     <div className="card p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={"text-3xl font-bold mt-1 " + accents[accent]}>{value}</div>
-      {hint && <div className="text-xs text-slate-500 mt-1">{hint}</div>}
+      <div className="text-xs uppercase tracking-wide" style={{ color: "#7B8794" }}>{label}</div>
+      <div className="text-3xl font-bold mt-1" style={{ color: accents[accent] }}>{value}</div>
+      {hint && <div className="text-xs mt-1" style={{ color: "#7B8794" }}>{hint}</div>}
     </div>
   );
 }

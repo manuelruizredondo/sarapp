@@ -1,29 +1,30 @@
-# Sarapp
+# Vacantia
 
-Control de **vacaciones, bajas médicas, asistencia diaria, permisos y festivos** para equipos pequeños.
+> Vacaciones · Descansos · Bienestar
 
-Hecho con **Next.js 14 (App Router) + Tailwind CSS + Supabase (Auth + Postgres + RLS)**.
+Gestor de ausencias para equipos pequeños: vacaciones, bajas médicas, asistencia diaria, permisos y festivos. Con autenticación, roles y una vista por trabajador.
 
-## Funcionalidades
+Construido con **Next.js 14 (App Router) · Tailwind CSS · Supabase (Auth + Postgres + RLS)**.
 
-### Para todos los usuarios
-- 🏠 **Hoy**: cuántas personas hay fuera, lista de ausentes, próximos 7 días, cobertura por departamento.
-- 📅 **Calendario** mensual con festivos marcados y barras de color por persona.
-- 🗓️ **Resumen por semanas**.
-- 🏖️ **Ausencias** con filtros y exportación a CSV.
-- 📊 **Vista anual** estilo heatmap por trabajador.
-- 👤 **Mi cuenta**: ficha personal con histórico, días consumidos y restantes.
+## Vista funcional
 
-### Solo administradores
-- 👥 **Trabajadores** (CRUD): alta, color en calendario, rol, enlace con usuario de Supabase Auth.
-- ✅ **Asistencia diaria** (fichaje rápido).
-- 🎉 **Festivos** (CRUD) con carga rápida de festivos nacionales de España.
-- ➕ **Registrar/editar/borrar** ausencias, con avisos de solapamiento y de baja cobertura.
+**Para todo el equipo**
+- 🏠 **Hoy** — quién está fuera, próximos 7 días y cobertura por departamento.
+- 📅 **Calendario** — vista mensual con festivos marcados y barras de color por persona.
+- 🗓️ **Semanas** — resumen agrupado por semana.
+- 🏖️ **Ausencias** — listado, filtros y exportación a CSV.
+- 👤 **Mi cuenta** — ficha personal con histórico, días consumidos y restantes (heatmap anual).
 
-### Cálculo correcto
+**Solo administradores**
+- 👥 **Trabajadores** — alta, edición y baja con creación automática del usuario de Auth.
+- ✅ **Asistencia diaria** — fichaje rápido.
+- 🎉 **Festivos** — gestión y carga rápida de festivos.
+- ✏️ Crear, editar y borrar ausencias de cualquier persona.
+
+**Reglas de negocio**
 - Las vacaciones se cuentan en **días laborables** (lun-vie, sin festivos).
-- Los festivos se reflejan en el calendario y se descuentan del cómputo.
-- Aviso al guardar si la persona ya tiene otra ausencia en esas fechas, o si 3 o más personas estarán fuera ese día.
+- Aviso al registrar una ausencia si solapa con otra del mismo trabajador o si ≥3 personas estarán fuera el mismo día.
+- Cada trabajador tiene un color que se respeta en todas las vistas.
 
 ## Puesta en marcha
 
@@ -33,32 +34,32 @@ Hecho con **Next.js 14 (App Router) + Tailwind CSS + Supabase (Auth + Postgres +
 npm install
 ```
 
-### 2. Crear proyecto en Supabase y ejecutar SQL
+### 2. Crear proyecto Supabase y ejecutar el esquema
 
-1. Crea proyecto en https://supabase.com/.
-2. SQL Editor → ejecuta primero [`supabase/schema.sql`](supabase/schema.sql) (tablas y vista).
-3. SQL Editor → ejecuta después [`supabase/migration_auth_festivos.sql`](supabase/migration_auth_festivos.sql) (roles, RLS y festivos).
-4. Project Settings → API → copia **Project URL** y **anon public key**.
+1. Crea proyecto gratis en https://supabase.com/.
+2. Abre **SQL Editor → New query** y ejecuta el contenido de [`supabase/schema.sql`](supabase/schema.sql). Es idempotente, podés repetirlo cuando quieras.
+3. Anota tu **Project URL** y la **anon public key** (Project Settings → API).
+4. Copia también la **service_role key** (la usa el servidor para crear usuarios).
 
-### 3. Crear el primer admin
-
-a) Authentication → Users → **Add user** (introduce email y contraseña).
-b) En SQL Editor ejecuta (sustituyendo tu email):
-
-```sql
-insert into public.trabajadores (nombre, email, user_id, rol, dias_vacaciones_anuales, color)
-select 'Admin', u.email, u.id, 'admin', 22, '#0f172a'
-from auth.users u where u.email = 'TU_EMAIL@empresa.com'
-on conflict (user_id) do update set rol = 'admin';
-```
-
-### 4. Configurar variables de entorno
+### 3. Variables de entorno
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Pega tu `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+Pega tus claves en `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+```
+
+⚠️ Nunca subas la `service_role` al cliente: salta RLS y permite leer/borrar todo.
+
+### 4. Crear el primer admin
+
+No hace falta SQL ni configuración previa: arranca la app, ve a `/login`, crea el usuario desde **Supabase → Authentication → Users → Add user** (marca "Auto Confirm User") y entra con esas credenciales. La app detectará que es el primer usuario y le asignará automáticamente el rol `admin`.
 
 ### 5. Arrancar
 
@@ -66,76 +67,78 @@ Pega tu `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 npm run dev
 ```
 
-Abre http://localhost:3000 e inicia sesión con el admin creado.
-
-### 6. Dar de alta empleados
-
-Para cada trabajador:
-
-1. Authentication → Users → **Add user** con su email.
-2. En la app, **Trabajadores → + Nuevo trabajador**:
-   - Rellena nombre, puesto, etc.
-   - **Rol:** Trabajador
-   - **user_id de Supabase Auth:** pega el `id` que ves en Authentication → Users
-3. Listo: el empleado puede entrar con su email/contraseña y verá solo sus propias ausencias.
-
-## Seguridad y RLS
-
-- **Admin** (rol = `admin`): ve y edita todo.
-- **Trabajador** (rol = `trabajador`): solo ve su propio registro, sus propias ausencias y sus propias asistencias. No puede editar nada (solo lectura).
-- Las **políticas RLS** están definidas en `supabase/migration_auth_festivos.sql` y se aplican a nivel de PostgreSQL, así que aunque alguien manipule el cliente nunca podrá ver datos ajenos.
+Abre http://localhost:3000
 
 ## Despliegue (Vercel / Netlify)
 
-1. Sube a GitHub.
-2. Importa el repo en Vercel o Netlify.
-3. Variables de entorno:
+1. Push del repo a GitHub.
+2. Importa el repo en Netlify/Vercel.
+3. Variables de entorno (las tres):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Deploy.
+   - `SUPABASE_SERVICE_ROLE_KEY`
+4. En Supabase → **Authentication → URL Configuration** añade tu dominio público en **Site URL** y en **Redirect URLs**.
+5. Deploy.
 
-## Estructura del proyecto
+## Seguridad y RLS
+
+- **admin** ve y edita todo.
+- **trabajador** solo ve su propio registro, sus ausencias y sus asistencias (solo lectura).
+- Las políticas RLS están en `supabase/schema.sql` y se aplican a nivel PostgreSQL: aunque se manipule el cliente, nadie podrá leer datos ajenos.
+- El endpoint `/api/admin/users` (crear/borrar usuarios y cambiar contraseñas) está protegido por el JWT del caller + verificación de rol admin.
+
+## Estructura
 
 ```
-sarapp/
+vacantia/
 ├── app/
-│   ├── login/                  # Login con email + password
-│   ├── page.tsx                # Dashboard "Hoy" + cobertura
-│   ├── calendario/             # Vista mensual (festivos en ámbar)
-│   ├── resumen/                # Resumen por semanas
-│   ├── ausencias/              # CRUD + CSV + solapamientos
-│   ├── asistencia/             # Fichaje diario (admin)
+│   ├── login/                    # Login con email+password
+│   ├── page.tsx                  # Dashboard "Hoy" + cobertura
+│   ├── calendario/               # Vista mensual con festivos
+│   ├── resumen/                  # Resumen por semanas
+│   ├── ausencias/                # CRUD + CSV + avisos
+│   ├── asistencia/               # Fichaje diario (admin)
 │   ├── trabajadores/
-│   │   ├── page.tsx            # Listado (admin)
-│   │   └── [id]/page.tsx       # Detalle + heatmap anual
-│   ├── festivos/               # CRUD festivos (admin)
-│   ├── mi-cuenta/              # Redirige a la ficha del usuario logueado
+│   │   ├── page.tsx              # Listado (admin)
+│   │   └── [id]/page.tsx         # Detalle + heatmap anual
+│   ├── festivos/                 # CRUD festivos (admin)
+│   ├── mi-cuenta/                # Redirige a la ficha del usuario
+│   ├── api/
+│   │   ├── auth/bootstrap/       # Crea/enlaza ficha en primer login
+│   │   └── admin/users/          # Crear, borrar y cambiar pwd
+│   ├── not-found.tsx
 │   ├── layout.tsx
 │   └── globals.css
 ├── components/
-│   ├── AuthProvider.tsx        # Contexto de sesión + perfil + rol
-│   ├── AppShell.tsx            # Wrapper que decide layout según sesión
-│   ├── Sidebar.tsx             # Navegación filtrada por rol
+│   ├── AuthProvider.tsx          # Sesión + perfil + rol
+│   ├── AppShell.tsx              # Decide qué layout mostrar
+│   ├── Sidebar.tsx               # Nav desktop
+│   ├── MobileNav.tsx             # Nav móvil (burger + drawer)
+│   ├── Logo.tsx                  # SVG inline + fallback a PNG
 │   ├── ColorPicker.tsx
 │   ├── HeatmapAnual.tsx
 │   ├── PageHeader.tsx
+│   ├── Modal.tsx
+│   ├── EmptyState.tsx
+│   ├── Skeleton.tsx
 │   └── SupabaseBanner.tsx
 ├── lib/
-│   ├── supabase.ts             # Cliente Supabase con auth persistente
-│   ├── data.ts                 # CRUD trabajadores/ausencias/asistencias/festivos
-│   ├── types.ts
-│   └── dates.ts                # Días naturales + laborables (con festivos)
+│   ├── supabase.ts               # Cliente browser
+│   ├── supabaseAdmin.ts          # Cliente server (service role)
+│   ├── data.ts                   # Funciones CRUD
+│   ├── types.ts                  # Tipos + paleta + labels
+│   └── dates.ts                  # Días naturales + laborables
+├── public/                       # logo.png, logo-mark.png, favicon.png
 ├── supabase/
-│   ├── schema.sql              # Tablas base
-│   └── migration_auth_festivos.sql  # Roles, RLS, festivos, helpers
+│   └── schema.sql                # Esquema completo idempotente
 └── package.json
 ```
 
-## Roadmap pendiente
+## Roadmap
 
 - [ ] Drag & drop en el calendario para crear ausencias rápido.
-- [ ] Notificaciones por email (admin) cuando empieza/acaba una ausencia o quedan pocos días.
+- [ ] Notificaciones por email cuando empieza/acaba una ausencia.
 - [ ] Importar trabajadores desde CSV.
-- [ ] Mejorar móvil (drawer + bottom nav).
-- [ ] Auditoría (tabla de logs).
+- [ ] Tabla de auditoría (quién creó/modificó qué y cuándo).
 - [ ] Integración con Google Calendar.
+- [ ] Soporte multi-empresa.

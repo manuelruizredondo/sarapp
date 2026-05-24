@@ -119,13 +119,27 @@ export default function CalendarioPage() {
         ))}
       </div>
       <div className="card p-3 mb-4 flex flex-wrap gap-3 items-center text-xs">
-        <span className="text-slate-500 uppercase tracking-wide font-semibold">Tipo (punto):</span>
+        <span className="uppercase tracking-wide font-semibold" style={{ color: "#7B8794" }}>Tipo (punto):</span>
         {(["vacaciones","baja_medica","permiso","asuntos_propios","formacion","otro"] as const).map((t) => (
           <div key={t} className="flex items-center gap-1.5">
             <span className={"h-2.5 w-2.5 rounded-full " + TIPO_DOT[t]} />
-            <span className="text-slate-600">{TIPO_LABEL[t]}</span>
+            <span style={{ color: "#1F2937" }}>{TIPO_LABEL[t]}</span>
           </div>
         ))}
+        <span className="mx-2" style={{ color: "#E5EAF2" }}>|</span>
+        <div className="flex items-center gap-1.5">
+          <span>🚩</span><span style={{ color: "#1F2937" }}>Validada</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="h-3 w-6 rounded"
+            style={{
+              border: "1px dashed #7B8794",
+              backgroundImage: "repeating-linear-gradient(45deg, transparent 0 3px, rgba(125,135,148,0.35) 3px 6px)",
+            }}
+          />
+          <span style={{ color: "#1F2937" }}>Pendiente</span>
+        </div>
       </div>
 
       <div className="card overflow-hidden">
@@ -176,18 +190,28 @@ export default function CalendarioPage() {
                       const t = tById[a.trabajador_id];
                       const bg = t?.color || COLOR_DEFAULT;
                       const fg = textoSobre(bg);
+                      const pendiente = !a.aprobado;
                       return (
                         <div
                           key={a.id}
                           className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium truncate"
-                          style={{ backgroundColor: bg, color: fg }}
-                          title={`${t?.nombre ?? ""} · ${TIPO_LABEL[a.tipo]}`}
+                          style={{
+                            backgroundColor: bg,
+                            color: fg,
+                            opacity: pendiente ? 0.55 : 1,
+                            backgroundImage: pendiente
+                              ? `repeating-linear-gradient(45deg, transparent 0 4px, rgba(255,255,255,0.35) 4px 8px)`
+                              : undefined,
+                            border: pendiente ? `1px dashed ${fg}` : undefined,
+                          }}
+                          title={`${t?.nombre ?? ""} · ${TIPO_LABEL[a.tipo]}${pendiente ? " · Pendiente de validar" : " · Validada"}`}
                         >
                           <span
                             className={"h-1.5 w-1.5 rounded-full shrink-0 " + TIPO_DOT[a.tipo]}
                             style={{ outline: `1px solid ${fg}` }}
                           />
                           <span className="truncate">{t?.nombre ?? "—"}</span>
+                          {!pendiente && <span className="ml-auto">🚩</span>}
                         </div>
                       );
                     })}

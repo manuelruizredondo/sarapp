@@ -15,6 +15,8 @@ import {
 import { Ausencia, COLOR_DEFAULT, Festivo, Trabajador, colorPorIndice } from "@/lib/types";
 import { diasLaborables } from "@/lib/dates";
 import ColorPicker from "@/components/ColorPicker";
+import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
 
 type Form = Partial<Trabajador> & { id?: string; password?: string };
 
@@ -148,9 +150,13 @@ export default function TrabajadoresPage() {
         {loading ? (
           <p className="p-5 text-sm" style={{ color: "#7B8794" }}>Cargando…</p>
         ) : items.length === 0 ? (
-          <p className="p-5 text-sm" style={{ color: "#7B8794" }}>
-            Aún no hay trabajadores. Crea el primero con el botón de arriba.
-          </p>
+          <div className="p-5">
+            <EmptyState
+              icon="👥"
+              title="Aún no hay trabajadores"
+              hint="Crea el primer trabajador con el botón de arriba. La app generará automáticamente sus credenciales de acceso."
+            />
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead style={{ background: "#F7F9FC" }} className="text-xs uppercase">
@@ -355,18 +361,3 @@ export default function TrabajadoresPage() {
   );
 }
 
-function Modal({
-  title, children, onClose,
-}: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "#E5EAF2" }}>
-          <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} style={{ color: "#7B8794" }}>✕</button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}

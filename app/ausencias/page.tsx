@@ -19,6 +19,8 @@ import {
 } from "@/lib/types";
 import { diasEntre, diasLaborables, fmt, incluyeFecha, toISO } from "@/lib/dates";
 import { useAuth } from "@/components/AuthProvider";
+import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
 
 type Form = {
   id?: string;
@@ -27,6 +29,7 @@ type Form = {
   fecha_inicio: string;
   fecha_fin: string;
   motivo: string;
+  aprobado: boolean;
 };
 
 const tipos: TipoAusencia[] = [
@@ -57,6 +60,7 @@ export default function AusenciasPage() {
     fecha_inicio: today,
     fecha_fin: today,
     motivo: "",
+    aprobado: false,
   });
 
   async function reload() {
@@ -145,6 +149,7 @@ export default function AusenciasPage() {
           fecha_inicio: form.fecha_inicio,
           fecha_fin: form.fecha_fin,
           motivo: form.motivo || null,
+          aprobado: form.aprobado,
         });
       } else {
         await createAusencia({
@@ -153,11 +158,20 @@ export default function AusenciasPage() {
           fecha_inicio: form.fecha_inicio,
           fecha_fin: form.fecha_fin,
           motivo: form.motivo || null,
-          aprobado: true,
+          aprobado: form.aprobado,
         });
       }
       setOpenForm(false);
-      setForm({ trabajador_id: "", tipo: "vacaciones", fecha_inicio: today, fecha_fin: today, motivo: "" });
+      setForm({ trabajador_id: "", tipo: "vacaciones", fecha_inicio: today, fecha_fin: today, motivo: "", aprobado: false });
+      await reload();
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  }
+
+  async function toggleValidacion(a: Ausencia) {
+    try {
+      await updateAusencia(a.id, { aprobado: !a.aprobado });
       await reload();
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -178,6 +192,7 @@ export default function AusenciasPage() {
       fecha_inicio: a.fecha_inicio,
       fecha_fin: a.fecha_fin,
       motivo: a.motivo ?? "",
+      aprobado: a.aprobado,
     });
     setOpenForm(true);
   }
@@ -215,7 +230,7 @@ export default function AusenciasPage() {
             <button className="btn-ghost" onClick={exportCSV}>⬇ Exportar CSV</button>
             {isAdmin && (
               <button className="btn-primary" onClick={() => {
-                setForm({ trabajador_id: "", tipo: "vacaciones", fecha_inicio: today, fecha_fin: today, motivo: "" });
+                setForm({ trabajador_id: "", tipo: "vacaciones", fecha_inicio: today, fecha_fin: today, motivo: "", aprobado: false });
                 setOpenForm(true);
               }}>
                 + Registrar ausencia
@@ -255,15 +270,24 @@ export default function AusenciasPage() {
       {/* Tabla */}
       <div className="card overflow-hidden">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Cargando…</p>
+          <p className="p-5 text-sm" style={{ color: "#7B8794" }}>Cargando…</p>
         ) : filtradas.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No hay ausencias con esos filtros.</p>
+          <div className="p-5">
+            <EmptyState
+              icon="🏖️"
+              title="No hay ausencias"
+              hint={filtroTipo !== "todos" || filtroTrabajador !== "todos"
+                ? "Prueba a quitar los filtros."
+                : "Cuando registres la primera ausencia aparecerá aquí."}
+            />
+          </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
+            <thead className="text-xs uppercase" style={{ background: "#F7F9FC", color: "#7B8794" }}>
               <tr>
                 <th className="text-left px-4 py-3">Trabajador</th>
                 <th className="text-left px-4 py-3">Tipo</th>
+                <th className="text-center px-4 py-3">Estado</th>
                 <th className="text-left px-4 py-3">Desde</th>
                 <th className="text-left px-4 py-3">Hasta</th>
                 <th className="text-right px-4 py-3">Naturales</th>
@@ -272,16 +296,38 @@ export default function AusenciasPage() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y" style={{ borderColor: "#E5EAF2" }}>
               {filtradas.map((a) => {
                 const t = tById[a.trabajador_id];
                 return (
-                  <tr key={a.id} className="hover:bg-slate-50">
+                  <tr key={a.id} className="hover:bg-[#F7F9FC]">
                     <td className="px-4 py-3 font-medium">
                       {t ? `${t.nombre} ${t.apellidos ?? ""}` : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <span className={"badge " + TIPO_COLOR[a.tipo]}>{TIPO_LABEL[a.tipo]}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {isAdmin ? (
+                        <button
+                          onClick={() => toggleValidacion(a)}
+                          className="badge transition-colors"
+                          style={a.aprobado
+                            ? { background: "#E6FBFB", color: "#062E73", borderColor: "#17C7C8" }
+                            : { background: "#FFF8E1", color: "#7a5d00", borderColor: "#F5B700" }
+                          }
+                          title={a.aprobado ? "Click para quitar la validación" : "Click para validar"}
+                        >
+                          {a.aprobado ? "🚩 Validada" : "⏳ Pendiente"}
+                        </button>
+                      ) : (
+                        <span className="badge" style={a.aprobado
+                          ? { background: "#E6FBFB", color: "#062E73", borderColor: "#17C7C8" }
+                          : { background: "#FFF8E1", color: "#7a5d00", borderColor: "#F5B700" }
+                        }>
+                          {a.aprobado ? "🚩 Validada" : "⏳ Pendiente"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">{fmt(a.fecha_inicio)}</td>
                     <td className="px-4 py-3">{fmt(a.fecha_fin)}</td>
@@ -289,12 +335,12 @@ export default function AusenciasPage() {
                     <td className="px-4 py-3 text-right font-semibold">
                       {diasLaborables(a.fecha_inicio, a.fecha_fin, festivosISO)}
                     </td>
-                    <td className="px-4 py-3 text-slate-600 truncate max-w-[240px]">{a.motivo ?? "—"}</td>
+                    <td className="px-4 py-3 truncate max-w-[240px]" style={{ color: "#7B8794" }}>{a.motivo ?? "—"}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {isAdmin && (
                         <>
                           <button className="btn-ghost mr-1" onClick={() => startEdit(a)}>Editar</button>
-                          <button className="btn-ghost text-rose-600 hover:bg-rose-50" onClick={() => onDelete(a.id)}>Borrar</button>
+                          <button className="btn-ghost" style={{ color: "#E5484D" }} onClick={() => onDelete(a.id)}>Borrar</button>
                         </>
                       )}
                     </td>
@@ -308,13 +354,11 @@ export default function AusenciasPage() {
 
       {/* Modal */}
       {openForm && isAdmin && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-              <h3 className="font-semibold">{form.id ? "Editar ausencia" : "Registrar ausencia"}</h3>
-              <button onClick={() => setOpenForm(false)} className="text-slate-500 hover:text-slate-800">✕</button>
-            </div>
-            <form onSubmit={onSubmit} className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Modal
+          title={form.id ? "Editar ausencia" : "Registrar ausencia"}
+          onClose={() => setOpenForm(false)}
+        >
+          <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="label">Trabajador *</label>
                 <select className="input" required value={form.trabajador_id} onChange={(e) => setForm({ ...form, trabajador_id: e.target.value })}>
@@ -343,13 +387,26 @@ export default function AusenciasPage() {
                 <label className="label">Motivo / notas</label>
                 <textarea className="input min-h-[80px]" value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} />
               </div>
+              <div className="md:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "#F7F9FC" }}>
+                <input
+                  id="aprobado"
+                  type="checkbox"
+                  checked={form.aprobado}
+                  onChange={(e) => setForm({ ...form, aprobado: e.target.checked })}
+                />
+                <label htmlFor="aprobado" className="text-sm flex items-center gap-1">
+                  <span>🚩</span> Marcar como <strong>validada</strong> por el administrador
+                </label>
+              </div>
               <div className="md:col-span-2 flex items-center justify-between pt-2">
-                <div className="text-sm text-slate-500">
+                <div className="text-sm" style={{ color: "#7B8794" }}>
                   {form.fecha_inicio && form.fecha_fin && form.fecha_fin >= form.fecha_inicio ? (
                     <>
                       <span>{diasEntre(form.fecha_inicio, form.fecha_fin)}d naturales</span>
                       <span className="mx-2">·</span>
-                      <span className="font-semibold">{diasLaborables(form.fecha_inicio, form.fecha_fin, festivosISO)}d laborables</span>
+                      <span className="font-semibold" style={{ color: "#062E73" }}>
+                        {diasLaborables(form.fecha_inicio, form.fecha_fin, festivosISO)}d laborables
+                      </span>
                     </>
                   ) : ""}
                 </div>
@@ -359,8 +416,7 @@ export default function AusenciasPage() {
                 </div>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
