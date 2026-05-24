@@ -188,6 +188,19 @@ export async function adminCambiarPassword(userId: string, password: string) {
   if (!r.ok) throw new Error(json.error ?? "Error cambiando contraseña");
 }
 
+// ---------- BOOTSTRAP (auto-crea ficha al primer login) ----------
+export async function bootstrapMiTrabajador(): Promise<Trabajador | null> {
+  const headers = await getAuthHeader();
+  if (!Object.keys(headers).length) return null;
+  const r = await fetch("/api/auth/bootstrap", { method: "POST", headers });
+  if (!r.ok) {
+    console.error("Bootstrap falló:", await r.text());
+    return null;
+  }
+  const json = await r.json();
+  return (json.trabajador as Trabajador) ?? null;
+}
+
 // ---------- MI PERFIL (sesión actual) ----------
 export async function meTrabajador(): Promise<Trabajador | null> {
   if (!supabase) return null;

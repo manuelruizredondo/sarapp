@@ -9,7 +9,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { supabase, supabaseReady } from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
-import { meTrabajador } from "@/lib/data";
+import { bootstrapMiTrabajador, meTrabajador } from "@/lib/data";
 import type { Trabajador } from "@/lib/types";
 
 type Ctx = {
@@ -44,11 +44,20 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   const reloadPerfil = useCallback(async () => {
     try {
-      // Timeout para que un fallo de Supabase no congele la app
-      const p = await Promise.race<Promise<Trabajador | null>>([
+      // Intenta leer la ficha del trabajador
+      let p = await Promise.race<Promise<Trabajador | null>>([
         meTrabajador(),
         new Promise<Trabajador | null>((resolve) => setTimeout(() => resolve(null), 5000)),
       ]);
+
+      // Si no hay ficha, intenta auto-crearla (primer usuario → admin)
+      if (!p) {
+        p = await Promise.race<Promise<Trabajador | null>>([
+          bootstrapMiTrabajador(),
+          new Promise<Trabajador | null>((resolve) => setTimeout(() => resolve(null), 7000)),
+        ]);
+      }
+
       setPerfil(p);
     } catch (e) {
       console.error("Error cargando perfil:", e);
