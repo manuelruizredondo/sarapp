@@ -80,6 +80,18 @@ html, body {
   @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border;
 }
 
+/* Tablas con scroll horizontal en móvil sin perder el card */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 640px;
+}
+
+/* Helpers responsivos */
+.card-sm-pad { @apply p-3 md:p-5; }
+
 /* Link styles */
 a.link, .link {
   color: var(--primary);

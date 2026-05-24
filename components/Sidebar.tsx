@@ -33,7 +33,7 @@ export default function Sidebar() {
             vacantia
           </div>
           <div className="text-[10px] uppercase tracking-wider" style={{ color: "#17C7C8" }}>
-            Vacaciones · Bienestar
+            by Grupo Garantía
           </div>
         </div>
       </div>
@@ -85,12 +85,12 @@ export default function Sidebar() {
         </div>
         <button
           onClick={() => signOut()}
-          className="btn-ghost w-full text-xs"
+          className="w-full text-left text-xs px-3 py-2 rounded-lg hover:bg-[#EEF2F8] transition-colors"
           style={{ color: "#7B8794" }}
         >
           Cerrar sesión
         </button>
-        <div className="text-[10px] text-center pt-1" style={{ color: "#7B8794" }}>v0.3</div>
+        <div className="text-[10px] text-left px-3 pt-1" style={{ color: "#7B8794" }}>v0.3</div>
       </div>
     </aside>
   );

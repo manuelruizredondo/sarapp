@@ -158,6 +158,7 @@ export default function TrabajadoresPage() {
             />
           </div>
         ) : (
+          <div className="table-scroll">
           <table className="w-full text-sm">
             <thead style={{ background: "#F7F9FC" }} className="text-xs uppercase">
               <tr>
@@ -225,6 +226,7 @@ export default function TrabajadoresPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

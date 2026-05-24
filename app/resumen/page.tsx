@@ -104,15 +104,15 @@ export default function ResumenPage() {
             const personasUnicas = new Set(lista.map((x) => x.ausencia.trabajador_id)).size;
             return (
               <section key={idx} className="card overflow-hidden">
-                <header className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+                <header className="px-4 md:px-5 py-3 border-b flex flex-wrap items-center justify-between gap-2" style={{ borderColor: "#E5EAF2", background: "#F7F9FC" }}>
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Semana {idx + 1}</div>
-                    <div className="font-semibold">
+                    <div className="text-xs uppercase tracking-wide" style={{ color: "#7B8794" }}>Semana {idx + 1}</div>
+                    <div className="font-semibold text-sm md:text-base">
                       {fmt(s.inicio, "EEE d 'de' MMM")} – {fmt(s.fin, "EEE d 'de' MMM")}
                     </div>
                   </div>
-                  <div className="text-right text-xs text-slate-500">
-                    <div className="font-semibold text-slate-800 text-sm">
+                  <div className="text-right text-xs" style={{ color: "#7B8794" }}>
+                    <div className="font-semibold text-sm" style={{ color: "#062E73" }}>
                       {personasUnicas} persona{personasUnicas === 1 ? "" : "s"}
                     </div>
                     {lista.length} registro{lista.length === 1 ? "" : "s"}
@@ -120,15 +120,15 @@ export default function ResumenPage() {
                 </header>
 
                 {lista.length === 0 ? (
-                  <div className="px-5 py-6 text-sm text-slate-500">
+                  <div className="px-5 py-6 text-sm" style={{ color: "#7B8794" }}>
                     Nadie fuera esta semana. ✨
                   </div>
                 ) : (
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
                     {lista.map(({ ausencia: a, dias }) => {
                       const t = tById[a.trabajador_id];
                       return (
-                        <li key={a.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                        <li key={a.id} className="px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <span
                               className="h-3 w-3 rounded-full border border-slate-200 shrink-0"

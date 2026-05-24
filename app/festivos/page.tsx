@@ -145,19 +145,19 @@ export default function FestivosPage() {
               <header className="px-5 py-3 border-b border-slate-200 bg-slate-50/50 font-semibold">
                 {y} · {porAnio[+y].length} festivos
               </header>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
                 {porAnio[+y].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((f) => (
-                  <li key={f.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🎉</span>
-                      <div>
-                        <div className="font-medium text-sm">{f.nombre}</div>
-                        <div className="text-xs text-slate-500">{fmt(f.fecha, "EEEE d 'de' MMMM yyyy")}</div>
+                  <li key={f.id} className="px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="text-xl md:text-2xl shrink-0">🎉</span>
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{f.nombre}</div>
+                        <div className="text-xs truncate" style={{ color: "#7B8794" }}>{fmt(f.fecha, "EEEE d 'de' MMMM yyyy")}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="badge bg-slate-100 text-slate-700 border-slate-300 capitalize">{f.ambito}</span>
-                      <button className="btn-ghost text-rose-600 hover:bg-rose-50" onClick={() => onDelete(f.id)}>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="badge capitalize" style={{ background: "#F7F9FC", color: "#1F2937", borderColor: "#E5EAF2" }}>{f.ambito}</span>
+                      <button className="btn-ghost" style={{ color: "#E5484D" }} onClick={() => onDelete(f.id)}>
                         Borrar
                       </button>
                     </div>

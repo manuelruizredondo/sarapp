@@ -143,19 +143,21 @@ export default function CalendarioPage() {
       </div>
 
       <div className="card overflow-hidden">
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+        <div style={{ minWidth: 640 }}>
         {/* Cabecera de días */}
-        <div className="grid grid-cols-7 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+        <div className="grid grid-cols-7 text-[11px] uppercase tracking-wide" style={{ background: "#F7F9FC", color: "#7B8794" }}>
           {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((d) => (
             <div key={d} className="px-2 py-2 text-center font-semibold">{d}</div>
           ))}
         </div>
 
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Cargando…</p>
+          <p className="p-5 text-sm" style={{ color: "#7B8794" }}>Cargando…</p>
         ) : (
-          <div className="grid grid-cols-7 border-t border-slate-200">
+          <div className="grid grid-cols-7 border-t" style={{ borderColor: "#E5EAF2" }}>
             {Array.from({ length: offset }).map((_, i) => (
-              <div key={"pad" + i} className="min-h-[110px] border-b border-r border-slate-100 bg-slate-50/30" />
+              <div key={"pad" + i} className="min-h-[90px] md:min-h-[110px] border-b border-r" style={{ borderColor: "#E5EAF2", background: "#F7F9FC" }} />
             ))}
             {dias.map((d) => {
               const iso = toISO(d);
@@ -167,10 +169,11 @@ export default function CalendarioPage() {
                 <div
                   key={iso}
                   className={
-                    "min-h-[110px] border-b border-r border-slate-100 p-1.5 " +
+                    "min-h-[90px] md:min-h-[110px] border-b border-r p-1.5 " +
                     (festivo ? "bg-amber-50/70 " : finde ? "bg-slate-50/50 " : "bg-white ") +
-                    (esHoy ? "ring-2 ring-inset ring-brand-500" : "")
+                    (esHoy ? "ring-2 ring-inset" : "")
                   }
+                  style={{ borderColor: "#E5EAF2", ...(esHoy ? { boxShadow: "inset 0 0 0 2px #17C7C8" } : {}) }}
                 >
                   <div className="flex items-start justify-between mb-1">
                     <div className={"text-xs font-semibold " + (esHoy ? "text-brand-700" : festivo ? "text-amber-700" : "text-slate-700")}>
@@ -224,6 +227,8 @@ export default function CalendarioPage() {
             })}
           </div>
         )}
+        </div>
+        </div>
       </div>
     </div>
   );

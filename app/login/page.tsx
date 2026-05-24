@@ -16,13 +16,26 @@ export default function LoginPage() {
     if (!supabase) return;
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      // Limpia cualquier sesión previa por si hay tokens caducados
+      try { await supabase.auth.signOut(); } catch { /* ignora */ }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      router.replace("/");
+    } finally {
+      setLoading(false);
     }
-    router.replace("/");
+  }
+
+  // Si el usuario teclea, asumimos que está corrigiendo el error anterior
+  function clearOnType(setter: (v: string) => void) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (error) setError(null);
+      setter(e.target.value);
+    };
   }
 
   return (
@@ -61,7 +74,8 @@ export default function LoginPage() {
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={clearOnType(setEmail)}
+              disabled={loading}
             />
           </div>
           <div>
@@ -72,12 +86,16 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={clearOnType(setPassword)}
+              disabled={loading}
             />
           </div>
-          {error && (
+          {/* Solo mostramos el error cuando NO estamos cargando, para evitar el flicker */}
+          {error && !loading && (
             <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-900">
-              {error}
+              {error === "Invalid login credentials"
+                ? "Email o contraseña incorrectos."
+                : error}
             </div>
           )}
           <button type="submit" disabled={loading} className="btn-primary w-full">
@@ -85,7 +103,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-center" style={{ color: "#7B8794" }}>
           Si no tienes acceso, pide a tu administrador que cree tu usuario.
         </p>
       </div>

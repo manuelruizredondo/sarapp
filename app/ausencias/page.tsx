@@ -282,6 +282,7 @@ export default function AusenciasPage() {
             />
           </div>
         ) : (
+          <div className="table-scroll">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase" style={{ background: "#F7F9FC", color: "#7B8794" }}>
               <tr>
@@ -349,6 +350,7 @@ export default function AusenciasPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

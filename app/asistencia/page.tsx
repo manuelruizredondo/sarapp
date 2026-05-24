@@ -119,12 +119,12 @@ export default function AsistenciaPage() {
             No hay trabajadores activos. Da de alta a alguien primero.
           </p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
             {trabajadores.map((t) => {
               const a = asistById[t.id];
               const aus = ausPorTrabajador[t.id];
               return (
-                <li key={t.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+                <li key={t.id} className="px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-medium text-sm truncate">
                       {t.nombre} {t.apellidos ?? ""}
