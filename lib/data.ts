@@ -136,6 +136,58 @@ export async function deleteFestivo(id: string) {
   if (error) throw error;
 }
 
+// ---------- ADMIN API (server side via /api/admin/users) ----------
+async function getAuthHeader(): Promise<HeadersInit> {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function adminCrearUsuario(payload: {
+  email: string;
+  password: string;
+  nombre: string;
+  apellidos?: string;
+  puesto?: string;
+  departamento?: string;
+  dias_vacaciones_anuales?: number;
+  color?: string;
+  rol?: "admin" | "trabajador";
+  activo?: boolean;
+}) {
+  const headers = { "Content-Type": "application/json", ...(await getAuthHeader()) };
+  const r = await fetch("/api/admin/users", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json.error ?? "Error creando usuario");
+  return json.trabajador as Trabajador;
+}
+
+export async function adminBorrarUsuario(trabajadorId: string) {
+  const headers = await getAuthHeader();
+  const r = await fetch(`/api/admin/users?trabajador_id=${trabajadorId}`, {
+    method: "DELETE",
+    headers,
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json.error ?? "Error borrando usuario");
+}
+
+export async function adminCambiarPassword(userId: string, password: string) {
+  const headers = { "Content-Type": "application/json", ...(await getAuthHeader()) };
+  const r = await fetch("/api/admin/users", {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ user_id: userId, password }),
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json.error ?? "Error cambiando contraseña");
+}
+
 // ---------- MI PERFIL (sesión actual) ----------
 export async function meTrabajador(): Promise<Trabajador | null> {
   if (!supabase) return null;

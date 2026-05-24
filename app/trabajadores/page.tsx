@@ -1,19 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
-import PageHeader from "@/components/PageHeader";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import {
+  adminBorrarUsuario,
+  adminCambiarPassword,
+  adminCrearUsuario,
   deleteTrabajador,
   listAusencias,
   listFestivos,
   listTrabajadores,
   upsertTrabajador,
 } from "@/lib/data";
-import { Ausencia, Festivo, Trabajador, COLOR_DEFAULT, colorPorIndice } from "@/lib/types";
+import { Ausencia, COLOR_DEFAULT, Festivo, Trabajador, colorPorIndice } from "@/lib/types";
 import { diasLaborables } from "@/lib/dates";
 import ColorPicker from "@/components/ColorPicker";
 
-type Form = Partial<Trabajador> & { id?: string };
+type Form = Partial<Trabajador> & { id?: string; password?: string };
 
 export default function TrabajadoresPage() {
   const [items, setItems] = useState<Trabajador[]>([]);
@@ -21,6 +24,9 @@ export default function TrabajadoresPage() {
   const [festivos, setFestivos] = useState<Festivo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Form | null>(null);
+  const [pwdFor, setPwdFor] = useState<Trabajador | null>(null);
+  const [pwdNew, setPwdNew] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -30,20 +36,17 @@ export default function TrabajadoresPage() {
     setFestivos(f);
     setLoading(false);
   }
-  useEffect(() => {
-    reload();
-  }, []);
+  useEffect(() => { reload(); }, []);
 
   const festivosISO = new Set(festivos.map((f) => f.fecha));
 
   function diasConsumidos(trabajadorId: string) {
     const year = new Date().getFullYear();
     return ausencias
-      .filter(
-        (a) =>
-          a.trabajador_id === trabajadorId &&
-          a.tipo === "vacaciones" &&
-          new Date(a.fecha_inicio).getFullYear() === year
+      .filter((a) =>
+        a.trabajador_id === trabajadorId &&
+        a.tipo === "vacaciones" &&
+        new Date(a.fecha_inicio).getFullYear() === year
       )
       .reduce((acc, a) => acc + diasLaborables(a.fecha_inicio, a.fecha_fin, festivosISO), 0);
   }
@@ -51,24 +54,63 @@ export default function TrabajadoresPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
+    setSaving(true);
     try {
-      await upsertTrabajador({
-        ...editing,
-        dias_vacaciones_anuales: Number(editing.dias_vacaciones_anuales ?? 22),
-        activo: editing.activo ?? true,
-      });
+      if (!editing.id) {
+        // NUEVO trabajador: la API crea usuario en Auth + registro
+        await adminCrearUsuario({
+          email: editing.email!,
+          password: editing.password!,
+          nombre: editing.nombre!,
+          apellidos: editing.apellidos ?? "",
+          puesto: editing.puesto ?? "",
+          departamento: editing.departamento ?? "",
+          dias_vacaciones_anuales: Number(editing.dias_vacaciones_anuales ?? 22),
+          color: editing.color ?? COLOR_DEFAULT,
+          rol: (editing.rol as any) ?? "trabajador",
+          activo: editing.activo ?? true,
+        });
+      } else {
+        // EDICIÓN: solo actualiza datos en la tabla (no toca Auth)
+        const { password, ...patch } = editing;
+        await upsertTrabajador({
+          ...patch,
+          dias_vacaciones_anuales: Number(patch.dias_vacaciones_anuales ?? 22),
+          activo: patch.activo ?? true,
+        });
+      }
       setEditing(null);
+      await reload();
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDelete(t: Trabajador) {
+    if (!confirm(`¿Eliminar a ${t.nombre}? También se borra su usuario de acceso y sus ausencias.`)) return;
+    try {
+      if (t.user_id) {
+        await adminBorrarUsuario(t.id);
+      } else {
+        await deleteTrabajador(t.id);
+      }
       await reload();
     } catch (err: any) {
       alert("Error: " + err.message);
     }
   }
 
-  async function onDelete(id: string) {
-    if (!confirm("¿Eliminar trabajador? También se borran sus ausencias.")) return;
+  async function onChangePwd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pwdFor?.user_id) return;
+    if (pwdNew.length < 6) { alert("Mínimo 6 caracteres"); return; }
     try {
-      await deleteTrabajador(id);
-      await reload();
+      await adminCambiarPassword(pwdFor.user_id, pwdNew);
+      setPwdFor(null);
+      setPwdNew("");
+      alert("Contraseña actualizada");
     } catch (err: any) {
       alert("Error: " + err.message);
     }
@@ -78,7 +120,7 @@ export default function TrabajadoresPage() {
     <div>
       <PageHeader
         title="Trabajadores"
-        subtitle="Alta, edición y días de vacaciones por año"
+        subtitle="Alta, edición y acceso a la app"
         actions={
           <button
             className="btn-primary"
@@ -87,13 +129,13 @@ export default function TrabajadoresPage() {
                 nombre: "",
                 apellidos: "",
                 email: "",
+                password: "",
                 puesto: "",
                 departamento: "",
                 dias_vacaciones_anuales: 22,
                 activo: true,
                 color: colorPorIndice(items.length),
                 rol: "trabajador",
-                user_id: null,
               })
             }
           >
@@ -104,14 +146,14 @@ export default function TrabajadoresPage() {
 
       <div className="card overflow-hidden">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Cargando…</p>
+          <p className="p-5 text-sm" style={{ color: "#7B8794" }}>Cargando…</p>
         ) : items.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">
+          <p className="p-5 text-sm" style={{ color: "#7B8794" }}>
             Aún no hay trabajadores. Crea el primero con el botón de arriba.
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
+            <thead style={{ background: "#F7F9FC" }} className="text-xs uppercase">
               <tr>
                 <th className="text-left px-4 py-3 w-8"></th>
                 <th className="text-left px-4 py-3">Nombre</th>
@@ -122,49 +164,55 @@ export default function TrabajadoresPage() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y" style={{ borderColor: "#E5EAF2" }}>
               {items.map((t) => {
                 const usados = diasConsumidos(t.id);
                 const restantes = t.dias_vacaciones_anuales - usados;
                 return (
-                  <tr key={t.id} className="hover:bg-slate-50">
+                  <tr key={t.id} className="hover:bg-[#F7F9FC]">
                     <td className="px-4 py-3">
                       <span
-                        className="inline-block h-4 w-4 rounded-full border border-slate-200"
-                        style={{ backgroundColor: t.color || COLOR_DEFAULT }}
-                        title={t.color || COLOR_DEFAULT}
+                        className="inline-block h-4 w-4 rounded-full"
+                        style={{ backgroundColor: t.color || COLOR_DEFAULT, border: "1px solid #E5EAF2" }}
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/trabajadores/${t.id}`} className="font-medium hover:text-brand-600">
+                      <Link href={`/trabajadores/${t.id}`} className="font-medium hover:opacity-80" style={{ color: "#062E73" }}>
                         {t.nombre} {t.apellidos ?? ""}
                       </Link>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs flex items-center gap-2 flex-wrap" style={{ color: "#7B8794" }}>
                         {t.email ?? ""}
                         {t.rol === "admin" && (
-                          <span className="ml-2 badge bg-slate-900 text-white border-slate-900">admin</span>
+                          <span className="badge" style={{ background: "#062E73", color: "#fff", borderColor: "#062E73" }}>admin</span>
                         )}
                         {!t.user_id && (
-                          <span className="ml-2 badge bg-amber-100 text-amber-800 border-amber-300">sin acceso</span>
+                          <span className="badge" style={{ background: "#FFF8E1", color: "#7a5d00", borderColor: "#F5B700" }}>sin acceso</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{t.puesto ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-700">{t.departamento ?? "—"}</td>
+                    <td className="px-4 py-3">{t.puesto ?? "—"}</td>
+                    <td className="px-4 py-3">{t.departamento ?? "—"}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="font-semibold">{restantes} / {t.dias_vacaciones_anuales}d</div>
-                      <div className="text-xs text-slate-500">{usados} consumidos</div>
+                      <div className="text-xs" style={{ color: "#7B8794" }}>{usados} consumidos</div>
                     </td>
                     <td className="px-4 py-3 text-center">
                       {t.activo ? (
-                        <span className="badge bg-emerald-100 text-emerald-800 border-emerald-300">Sí</span>
+                        <span className="badge" style={{ background: "#E6F9F1", color: "#0a7a4d", borderColor: "#16C784" }}>Sí</span>
                       ) : (
-                        <span className="badge bg-slate-100 text-slate-600 border-slate-300">No</span>
+                        <span className="badge" style={{ background: "#F7F9FC", color: "#7B8794", borderColor: "#E5EAF2" }}>No</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button className="btn-ghost mr-1" onClick={() => setEditing(t)}>Editar</button>
-                      <button className="btn-ghost text-rose-600 hover:bg-rose-50" onClick={() => onDelete(t.id)}>Borrar</button>
+                      {t.user_id && (
+                        <button className="btn-ghost mr-1" onClick={() => { setPwdFor(t); setPwdNew(""); }}>
+                          Pwd
+                        </button>
+                      )}
+                      <button className="btn-ghost" style={{ color: "#E5484D" }} onClick={() => onDelete(t)}>
+                        Borrar
+                      </button>
                     </td>
                   </tr>
                 );
@@ -174,14 +222,14 @@ export default function TrabajadoresPage() {
         )}
       </div>
 
+      {/* Modal alta/edición */}
       {editing && (
         <Modal onClose={() => setEditing(null)} title={editing.id ? "Editar trabajador" : "Nuevo trabajador"}>
           <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-1">
+            <div>
               <label className="label">Nombre *</label>
               <input
-                className="input"
-                required
+                className="input" required
                 value={editing.nombre ?? ""}
                 onChange={(e) => setEditing({ ...editing, nombre: e.target.value })}
               />
@@ -195,14 +243,33 @@ export default function TrabajadoresPage() {
               />
             </div>
             <div>
-              <label className="label">Email</label>
+              <label className="label">Email {!editing.id && "*"}</label>
               <input
-                className="input"
-                type="email"
+                className="input" type="email" required={!editing.id}
                 value={editing.email ?? ""}
                 onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                disabled={!!editing.id}
               />
+              {editing.id && (
+                <div className="text-[11px] mt-1" style={{ color: "#7B8794" }}>
+                  El email del login no se puede cambiar desde aquí.
+                </div>
+              )}
             </div>
+            {!editing.id && (
+              <div>
+                <label className="label">Contraseña inicial *</label>
+                <input
+                  className="input" type="text" required minLength={6}
+                  placeholder="Mínimo 6 caracteres"
+                  value={editing.password ?? ""}
+                  onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+                />
+                <div className="text-[11px] mt-1" style={{ color: "#7B8794" }}>
+                  Compártela con el trabajador para su primer acceso.
+                </div>
+              </div>
+            )}
             <div>
               <label className="label">Puesto</label>
               <input
@@ -222,10 +289,7 @@ export default function TrabajadoresPage() {
             <div>
               <label className="label">Días de vacaciones anuales</label>
               <input
-                className="input"
-                type="number"
-                min={0}
-                max={60}
+                className="input" type="number" min={0} max={60}
                 value={editing.dias_vacaciones_anuales ?? 22}
                 onChange={(e) => setEditing({ ...editing, dias_vacaciones_anuales: Number(e.target.value) })}
               />
@@ -240,18 +304,6 @@ export default function TrabajadoresPage() {
                 <option value="trabajador">Trabajador</option>
                 <option value="admin">Administrador</option>
               </select>
-            </div>
-            <div>
-              <label className="label">user_id de Supabase Auth (opcional)</label>
-              <input
-                className="input font-mono text-xs"
-                placeholder="uuid de auth.users"
-                value={editing.user_id ?? ""}
-                onChange={(e) => setEditing({ ...editing, user_id: e.target.value || null })}
-              />
-              <div className="text-[11px] text-slate-500 mt-1">
-                Crea el usuario en Supabase → Authentication → Users y pega aquí su id para enlazarlo.
-              </div>
             </div>
             <div className="md:col-span-2">
               <label className="label">Color en el calendario</label>
@@ -271,7 +323,30 @@ export default function TrabajadoresPage() {
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 pt-2">
               <button type="button" className="btn-ghost" onClick={() => setEditing(null)}>Cancelar</button>
-              <button type="submit" className="btn-primary">Guardar</button>
+              <button type="submit" className="btn-primary" disabled={saving}>
+                {saving ? "Guardando…" : (editing.id ? "Guardar" : "Crear acceso y guardar")}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal cambiar contraseña */}
+      {pwdFor && (
+        <Modal onClose={() => setPwdFor(null)} title={`Cambiar contraseña de ${pwdFor.nombre}`}>
+          <form onSubmit={onChangePwd} className="space-y-3">
+            <div>
+              <label className="label">Nueva contraseña</label>
+              <input
+                className="input" type="text" minLength={6} required
+                value={pwdNew}
+                onChange={(e) => setPwdNew(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setPwdFor(null)}>Cancelar</button>
+              <button type="submit" className="btn-primary">Cambiar</button>
             </div>
           </form>
         </Modal>
@@ -281,20 +356,14 @@ export default function TrabajadoresPage() {
 }
 
 function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
+  title, children, onClose,
+}: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "#E5EAF2" }}>
           <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-800">✕</button>
+          <button onClick={onClose} style={{ color: "#7B8794" }}>✕</button>
         </div>
         <div className="p-5">{children}</div>
       </div>
