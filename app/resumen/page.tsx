@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { listAusenciasRango, listTrabajadores } from "@/lib/data";
 import {
   Ausencia,
+  COLOR_DEFAULT,
   TIPO_COLOR,
   TIPO_DOT,
   TIPO_LABEL,
@@ -129,7 +130,11 @@ export default function ResumenPage() {
                       return (
                         <li key={a.id} className="px-5 py-3 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <span className={"h-2.5 w-2.5 rounded-full " + TIPO_DOT[a.tipo]} />
+                            <span
+                              className="h-3 w-3 rounded-full border border-slate-200 shrink-0"
+                              style={{ backgroundColor: t?.color || COLOR_DEFAULT }}
+                            />
+                            <span className={"h-2 w-2 rounded-full " + TIPO_DOT[a.tipo]} title={TIPO_LABEL[a.tipo]} />
                             <div className="min-w-0">
                               <div className="font-medium text-sm truncate">
                                 {t ? `${t.nombre} ${t.apellidos ?? ""}` : "—"}

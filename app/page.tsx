@@ -11,6 +11,7 @@ import {
   TIPO_LABEL,
   TIPO_COLOR,
   TIPO_DOT,
+  COLOR_DEFAULT,
 } from "@/lib/types";
 import { fmt, toISO, incluyeFecha, diasEntre } from "@/lib/dates";
 import { addDays } from "date-fns";
@@ -92,6 +93,46 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Cobertura por departamento */}
+      {(() => {
+        const deps = new Map<string, { total: number; fuera: number }>();
+        for (const t of activos) {
+          const k = t.departamento || "Sin departamento";
+          const dep = deps.get(k) ?? { total: 0, fuera: 0 };
+          dep.total++;
+          if (hoyAusentes.some((a) => a.trabajador_id === t.id)) dep.fuera++;
+          deps.set(k, dep);
+        }
+        if (deps.size === 0) return null;
+        return (
+          <section className="card p-5 mb-8">
+            <h2 className="font-semibold text-slate-800 mb-3">Cobertura por departamento</h2>
+            <div className="space-y-2">
+              {Array.from(deps.entries()).map(([dep, v]) => {
+                const pct = (v.fuera / v.total) * 100;
+                const danger = pct >= 50;
+                return (
+                  <div key={dep}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="font-medium">{dep}</span>
+                      <span className={"text-xs " + (danger ? "text-rose-600 font-semibold" : "text-slate-500")}>
+                        {v.total - v.fuera}/{v.total} disponibles
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={"h-full " + (danger ? "bg-rose-500" : pct > 0 ? "bg-amber-400" : "bg-emerald-500")}
+                        style={{ width: `${Math.max(5, 100 - pct)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
+
       {/* Lista de quién está fuera hoy */}
       <section className="card p-5 mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -109,7 +150,11 @@ export default function Dashboard() {
               return (
                 <li key={a.id} className="py-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className={"h-2.5 w-2.5 rounded-full " + TIPO_DOT[a.tipo]} />
+                    <span
+                      className="h-3 w-3 rounded-full border border-slate-200 shrink-0"
+                      style={{ backgroundColor: t?.color || COLOR_DEFAULT }}
+                    />
+                    <span className={"h-2 w-2 rounded-full " + TIPO_DOT[a.tipo]} title={TIPO_LABEL[a.tipo]} />
                     <div className="min-w-0">
                       <div className="font-medium text-sm truncate">
                         {t ? `${t.nombre} ${t.apellidos ?? ""}`.trim() : "—"}
@@ -154,7 +199,10 @@ export default function Dashboard() {
                     const t = trabajadorPorId[a.trabajador_id];
                     return (
                       <div key={a.id} className="flex items-center gap-1.5 text-xs">
-                        <span className={"h-1.5 w-1.5 rounded-full " + TIPO_DOT[a.tipo]} />
+                        <span
+                          className="h-2 w-2 rounded-full border border-slate-200 shrink-0"
+                          style={{ backgroundColor: t?.color || COLOR_DEFAULT }}
+                        />
                         <span className="truncate">{t?.nombre ?? "—"}</span>
                       </div>
                     );

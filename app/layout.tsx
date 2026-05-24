@@ -1,11 +1,12 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Sidebar from "@/components/Sidebar";
-import SupabaseBanner from "@/components/SupabaseBanner";
+import AuthProvider from "@/components/AuthProvider";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Sarapp · Control de ausencias",
+  title: "Vacantia · Vacaciones, descansos, bienestar",
   description: "Gestión de vacaciones, bajas, asistencias y permisos del equipo",
+  icons: { icon: "/favicon.png" },
 };
 
 export default function RootLayout({
@@ -16,13 +17,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="min-h-screen">
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
-            <SupabaseBanner />
-            {children}
-          </main>
-        </div>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );

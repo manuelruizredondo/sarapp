@@ -16,8 +16,13 @@ create table if not exists public.trabajadores (
   dias_vacaciones_anuales int not null default 22,
   activo boolean not null default true,
   notas text,
+  color text not null default '#3b82f6',
   created_at timestamptz default now()
 );
+
+-- Si la tabla ya existía sin color, lo añadimos:
+alter table public.trabajadores
+  add column if not exists color text not null default '#3b82f6';
 
 -- Tipos de ausencia: vacaciones, baja_medica, permiso, asuntos_propios, formacion, otro
 create table if not exists public.ausencias (

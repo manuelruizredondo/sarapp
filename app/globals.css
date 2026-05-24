@@ -3,17 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f8fafc;
+  --bg: #F7F9FC;
+  --primary: #062E73;
+  --primary-dark: #041B45;
+  --accent: #17C7C8;
+  --accent-light: #63E0DA;
+  --line: #E5EAF2;
+  --ink: #1F2937;
+  --ink-muted: #7B8794;
 }
 
 html, body {
   background: var(--bg);
-  color: #0f172a;
+  color: var(--ink);
   height: 100%;
 }
 
+/* ---------- COMPONENTES ---------- */
 .card {
-  @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+  @apply bg-white rounded-xl border shadow-card;
+  border-color: var(--line);
 }
 
 .btn {
@@ -21,25 +30,60 @@ html, body {
 }
 
 .btn-primary {
-  @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  @apply btn text-white;
+  background-color: var(--primary);
+}
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.btn-accent {
+  @apply btn text-white;
+  background-color: var(--accent);
+}
+.btn-accent:hover {
+  filter: brightness(0.95);
 }
 
 .btn-ghost {
-  @apply btn text-slate-700 hover:bg-slate-100;
+  @apply btn;
+  color: var(--ink);
+}
+.btn-ghost:hover {
+  background-color: #EEF2F8;
 }
 
 .btn-danger {
-  @apply btn bg-rose-600 text-white hover:bg-rose-700;
+  @apply btn text-white;
+  background-color: #E5484D;
+}
+.btn-danger:hover {
+  filter: brightness(0.95);
 }
 
 .input {
-  @apply w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500;
+  @apply w-full px-3 py-2 rounded-lg bg-white text-sm focus:outline-none;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(23, 199, 200, 0.18);
 }
 
 .label {
-  @apply block text-sm font-medium text-slate-700 mb-1;
+  @apply block text-sm font-medium mb-1;
+  color: var(--ink);
 }
 
 .badge {
   @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border;
+}
+
+/* Link styles */
+a.link, .link {
+  color: var(--primary);
+}
+a.link:hover, .link:hover {
+  color: var(--accent);
 }

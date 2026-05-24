@@ -1,3 +1,5 @@
+export type Rol = "admin" | "trabajador";
+
 export type Trabajador = {
   id: string;
   nombre: string;
@@ -9,8 +11,41 @@ export type Trabajador = {
   dias_vacaciones_anuales: number;
   activo: boolean;
   notas: string | null;
+  color: string;            // hex, ej. "#3b82f6"
+  user_id: string | null;   // enlace a auth.users
+  rol: Rol;
   created_at?: string;
 };
+
+export type Festivo = {
+  id: string;
+  fecha: string;
+  nombre: string;
+  ambito: "nacional" | "autonomico" | "local";
+};
+
+// Paleta de colores propuestos para los trabajadores
+export const COLOR_PALETA: { hex: string; name: string }[] = [
+  { hex: "#3b82f6", name: "Azul" },
+  { hex: "#10b981", name: "Verde" },
+  { hex: "#f59e0b", name: "Ámbar" },
+  { hex: "#ef4444", name: "Rojo" },
+  { hex: "#8b5cf6", name: "Violeta" },
+  { hex: "#ec4899", name: "Rosa" },
+  { hex: "#14b8a6", name: "Turquesa" },
+  { hex: "#0ea5e9", name: "Cielo" },
+  { hex: "#f97316", name: "Naranja" },
+  { hex: "#84cc16", name: "Lima" },
+  { hex: "#a855f7", name: "Púrpura" },
+  { hex: "#64748b", name: "Pizarra" },
+];
+
+export const COLOR_DEFAULT = "#3b82f6";
+
+// Devuelve un color de paleta determinista a partir de un id
+export function colorPorIndice(idx: number): string {
+  return COLOR_PALETA[idx % COLOR_PALETA.length].hex;
+}
 
 export type TipoAusencia =
   | "vacaciones"

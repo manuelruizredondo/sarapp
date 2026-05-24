@@ -1,33 +1,40 @@
 "use client";
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import Link from "next/link";
 import {
   deleteTrabajador,
   listAusencias,
+  listFestivos,
   listTrabajadores,
   upsertTrabajador,
 } from "@/lib/data";
-import { Ausencia, Trabajador } from "@/lib/types";
-import { diasEntre } from "@/lib/dates";
+import { Ausencia, Festivo, Trabajador, COLOR_DEFAULT, colorPorIndice } from "@/lib/types";
+import { diasLaborables } from "@/lib/dates";
+import ColorPicker from "@/components/ColorPicker";
 
 type Form = Partial<Trabajador> & { id?: string };
 
 export default function TrabajadoresPage() {
   const [items, setItems] = useState<Trabajador[]>([]);
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
+  const [festivos, setFestivos] = useState<Festivo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Form | null>(null);
 
   async function reload() {
     setLoading(true);
-    const [t, a] = await Promise.all([listTrabajadores(), listAusencias()]);
+    const [t, a, f] = await Promise.all([listTrabajadores(), listAusencias(), listFestivos()]);
     setItems(t);
     setAusencias(a);
+    setFestivos(f);
     setLoading(false);
   }
   useEffect(() => {
     reload();
   }, []);
+
+  const festivosISO = new Set(festivos.map((f) => f.fecha));
 
   function diasConsumidos(trabajadorId: string) {
     const year = new Date().getFullYear();
@@ -38,7 +45,7 @@ export default function TrabajadoresPage() {
           a.tipo === "vacaciones" &&
           new Date(a.fecha_inicio).getFullYear() === year
       )
-      .reduce((acc, a) => acc + diasEntre(a.fecha_inicio, a.fecha_fin), 0);
+      .reduce((acc, a) => acc + diasLaborables(a.fecha_inicio, a.fecha_fin, festivosISO), 0);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -84,6 +91,9 @@ export default function TrabajadoresPage() {
                 departamento: "",
                 dias_vacaciones_anuales: 22,
                 activo: true,
+                color: colorPorIndice(items.length),
+                rol: "trabajador",
+                user_id: null,
               })
             }
           >
@@ -103,6 +113,7 @@ export default function TrabajadoresPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
               <tr>
+                <th className="text-left px-4 py-3 w-8"></th>
                 <th className="text-left px-4 py-3">Nombre</th>
                 <th className="text-left px-4 py-3">Puesto</th>
                 <th className="text-left px-4 py-3">Departamento</th>
@@ -118,8 +129,25 @@ export default function TrabajadoresPage() {
                 return (
                   <tr key={t.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
-                      <div className="font-medium">{t.nombre} {t.apellidos ?? ""}</div>
-                      <div className="text-xs text-slate-500">{t.email ?? ""}</div>
+                      <span
+                        className="inline-block h-4 w-4 rounded-full border border-slate-200"
+                        style={{ backgroundColor: t.color || COLOR_DEFAULT }}
+                        title={t.color || COLOR_DEFAULT}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link href={`/trabajadores/${t.id}`} className="font-medium hover:text-brand-600">
+                        {t.nombre} {t.apellidos ?? ""}
+                      </Link>
+                      <div className="text-xs text-slate-500">
+                        {t.email ?? ""}
+                        {t.rol === "admin" && (
+                          <span className="ml-2 badge bg-slate-900 text-white border-slate-900">admin</span>
+                        )}
+                        {!t.user_id && (
+                          <span className="ml-2 badge bg-amber-100 text-amber-800 border-amber-300">sin acceso</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{t.puesto ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-700">{t.departamento ?? "—"}</td>
@@ -200,6 +228,36 @@ export default function TrabajadoresPage() {
                 max={60}
                 value={editing.dias_vacaciones_anuales ?? 22}
                 onChange={(e) => setEditing({ ...editing, dias_vacaciones_anuales: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="label">Rol</label>
+              <select
+                className="input"
+                value={editing.rol ?? "trabajador"}
+                onChange={(e) => setEditing({ ...editing, rol: e.target.value as any })}
+              >
+                <option value="trabajador">Trabajador</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">user_id de Supabase Auth (opcional)</label>
+              <input
+                className="input font-mono text-xs"
+                placeholder="uuid de auth.users"
+                value={editing.user_id ?? ""}
+                onChange={(e) => setEditing({ ...editing, user_id: e.target.value || null })}
+              />
+              <div className="text-[11px] text-slate-500 mt-1">
+                Crea el usuario en Supabase → Authentication → Users y pega aquí su id para enlazarlo.
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">Color en el calendario</label>
+              <ColorPicker
+                value={editing.color || COLOR_DEFAULT}
+                onChange={(hex) => setEditing({ ...editing, color: hex })}
               />
             </div>
             <div className="flex items-center gap-2 md:col-span-2">
