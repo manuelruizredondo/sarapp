@@ -6,7 +6,7 @@ import { useAuth } from "./AuthProvider";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { loading, user, perfil, signOut } = useAuth();
+  const { loading, user, perfil, signOut, reloadPerfil } = useAuth();
 
   const isLogin = path === "/login";
 
@@ -37,7 +37,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             de trabajador. Pide al administrador que te enlace, o si eres el admin, ejecuta el SQL
             de enlace en Supabase.
           </p>
-          <button onClick={signOut} className="btn-ghost">Cerrar sesión</button>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => reloadPerfil()} className="btn-primary">Reintentar</button>
+            <button onClick={signOut} className="btn-ghost">Cerrar sesión</button>
+          </div>
         </div>
       </div>
     );
