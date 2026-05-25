@@ -30,7 +30,10 @@ type Ctx = {
   superadmin: PlataformaAdmin | null;
   esSuperadmin: boolean;
   rolEfectivo: RolEfectivo | null;
+  /** True mientras se verifica la sesión inicial (~1s). */
   loading: boolean;
+  /** True mientras se carga superadmin/trabajador/empresa tras un login. */
+  perfilLoading: boolean;
   signOut: () => Promise<void>;
   reloadPerfil: () => Promise<void>;
 };
@@ -44,6 +47,7 @@ const AuthCtx = createContext<Ctx>({
   esSuperadmin: false,
   rolEfectivo: null,
   loading: true,
+  perfilLoading: false,
   signOut: async () => {},
   reloadPerfil: async () => {},
 });
@@ -51,6 +55,14 @@ const AuthCtx = createContext<Ctx>({
 export const useAuth = () => useContext(AuthCtx);
 
 const PUBLIC_ROUTES = ["/login"];
+
+// Helper: ejecuta una promesa con timeout devolviendo valor por defecto si se agota.
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race<T>([
+    p,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -61,43 +73,36 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [superadmin, setSuperadmin] = useState<PlataformaAdmin | null>(null);
   const [loading, setLoading] = useState(true);
+  const [perfilLoading, setPerfilLoading] = useState(false);
 
   const reloadPerfil = useCallback(async () => {
+    setPerfilLoading(true);
     try {
-      // 1) ¿Es superadmin (plataforma_admins)?
-      const sa = await Promise.race<Promise<PlataformaAdmin | null>>([
-        meSuperadmin(),
-        new Promise<PlataformaAdmin | null>((resolve) =>
-          setTimeout(() => resolve(null), 5000)
-        ),
-      ]);
-      setSuperadmin(sa);
-
-      // 2) Ficha de trabajador (puede no existir si solo eres superadmin)
-      let p = await Promise.race<Promise<Trabajador | null>>([
-        meTrabajador(),
-        new Promise<Trabajador | null>((resolve) =>
-          setTimeout(() => resolve(null), 5000)
-        ),
+      // 1) Intento rápido: leer en paralelo plataforma_admins y trabajadores.
+      let [sa, p] = await Promise.all([
+        withTimeout(meSuperadmin(), 4000, null),
+        withTimeout(meTrabajador(), 4000, null),
       ]);
 
-      // 3) Si no es superadmin y no tiene ficha → intentamos bootstrap (enlazar
-      //    a una ficha pre-creada con el mismo email, p.ej. el primer admin
-      //    de una empresa que ha sido dada de alta por el superadmin).
+      // 2) Si no hay nada en ninguna, llamamos bootstrap (idempotente).
+      //    Bootstrap puede:
+      //      - enlazar el user_id en plataforma_admins (si email pre-registrado)
+      //      - enlazar una ficha de trabajador huérfana con el mismo email
+      //    Después del bootstrap RE-LEEMOS para captar el cambio.
       if (!sa && !p) {
-        p = await Promise.race<Promise<Trabajador | null>>([
-          bootstrapMiTrabajador(),
-          new Promise<Trabajador | null>((resolve) =>
-            setTimeout(() => resolve(null), 7000)
-          ),
+        await withTimeout(bootstrapMiTrabajador(), 6000, null);
+        [sa, p] = await Promise.all([
+          withTimeout(meSuperadmin(), 4000, null),
+          withTimeout(meTrabajador(), 4000, null),
         ]);
       }
 
+      setSuperadmin(sa);
       setPerfil(p);
 
-      // 4) Cargar la empresa del trabajador (si tiene)
+      // 3) Cargar empresa del trabajador (si tiene)
       if (p?.empresa_id) {
-        const e = await getEmpresa(p.empresa_id);
+        const e = await withTimeout(getEmpresa(p.empresa_id), 4000, null);
         setEmpresa(e);
       } else {
         setEmpresa(null);
@@ -107,9 +112,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setPerfil(null);
       setEmpresa(null);
       setSuperadmin(null);
+    } finally {
+      setPerfilLoading(false);
     }
   }, []);
 
+  // Inicial: verifica si hay sesión. NO esperamos al perfil para quitar `loading`.
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -117,25 +125,24 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
     let mounted = true;
 
+    // Si la sesión inicial tarda más de 4s, salimos de loading igualmente.
     const killSwitch = setTimeout(() => {
-      if (mounted) {
-        console.warn("AuthProvider killSwitch: forzando salir de loading");
-        setLoading(false);
-      }
-    }, 8000);
+      if (mounted) setLoading(false);
+    }, 4000);
 
     (async () => {
       try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeout = new Promise<{ data: { session: Session | null } }>((resolve) =>
-          setTimeout(() => resolve({ data: { session: null } }), 5000)
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          3000,
+          { data: { session: null } } as any
         );
-        const { data } = await Promise.race([sessionPromise, timeout]);
         if (!mounted) return;
         setSession(data.session ?? null);
         setUser(data.session?.user ?? null);
+        // Si hay sesión, disparamos la carga de perfil EN PARALELO (no bloqueamos).
         if (data.session?.user) {
-          await reloadPerfil();
+          reloadPerfil(); // no await aquí
         }
       } catch (e) {
         console.error("Error obteniendo sesión:", e);
@@ -145,12 +152,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s ?? null);
       setUser(s?.user ?? null);
       if (s?.user) {
+        // Login o refresh: cargar perfil (sin tocar loading inicial)
         await reloadPerfil();
-      } else {
+      } else if (event === "SIGNED_OUT") {
         setPerfil(null);
         setEmpresa(null);
         setSuperadmin(null);
@@ -193,6 +201,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         esSuperadmin,
         rolEfectivo,
         loading,
+        perfilLoading,
         signOut,
         reloadPerfil,
       }}

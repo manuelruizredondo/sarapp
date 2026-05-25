@@ -1,5 +1,6 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import Sidebar from "./Sidebar";
 import MobileNav from "./MobileNav";
 import SupabaseBanner from "./SupabaseBanner";
@@ -8,12 +9,28 @@ import { useAuth } from "./AuthProvider";
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { loading, user, perfil, esSuperadmin, signOut, reloadPerfil } = useAuth();
+  const {
+    loading,
+    perfilLoading,
+    user,
+    perfil,
+    esSuperadmin,
+    signOut,
+    reloadPerfil,
+  } = useAuth();
 
   const isLogin = path === "/login";
 
+  // Si eres superadmin sin trabajador y estás en "/", manda a /superadmin.
+  useEffect(() => {
+    if (!loading && !perfilLoading && esSuperadmin && !perfil && (path === "/" || path === "")) {
+      router.replace("/superadmin");
+    }
+  }, [loading, perfilLoading, esSuperadmin, perfil, path, router]);
+
   if (isLogin) return <>{children}</>;
 
+  // 1) Verificación de sesión inicial (debería ser <1s)
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm" style={{ color: "#7B8794" }}>
@@ -22,21 +39,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
-    // El AuthProvider está redirigiendo a /login
-    return null;
+  // 2) Sin sesión → AuthProvider está redirigiendo a /login
+  if (!user) return null;
+
+  // 3) Estamos cargando el perfil tras un login → enseñamos el shell con loader
+  //    inline en vez de "Sin acceso", para evitar parpadeos.
+  if (perfilLoading) {
+    return (
+      <div className="flex min-h-screen flex-col md:flex-row">
+        <div className="hidden md:flex w-60 shrink-0 border-r bg-white" style={{ borderColor: "#E5EAF2" }} />
+        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+          <div className="min-h-[60vh] flex items-center justify-center text-sm" style={{ color: "#7B8794" }}>
+            Cargando tu cuenta…
+          </div>
+        </main>
+      </div>
+    );
   }
 
-  // Superadmin sin trabajador: es lo NORMAL (vive en plataforma_admins).
-  // Se le muestra el shell normal; el sidebar le mostrará el menú "Empresas".
-  // Si está en "/" sin trabajador propio, lo mandamos directamente a /superadmin.
+  // 4) Superadmin sin ficha (lo normal): se muestra el shell completo;
+  //    el sidebar le sirve el menú "Empresas".
   if (esSuperadmin && !perfil) {
-    if (path === "/" || path === "") {
-      // Lazy redirect a /superadmin
-      if (typeof window !== "undefined") {
-        router.replace("/superadmin");
-      }
-    }
     return (
       <div className="flex min-h-screen flex-col md:flex-row">
         <Sidebar />
@@ -49,7 +72,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Usuario logueado pero sin ficha y sin ser superadmin → bloqueo.
+  // 5) Autenticado pero sin trabajador y sin ser superadmin → bloqueo.
   if (!perfil) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -70,6 +93,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // 6) Caso normal: usuario con ficha
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
