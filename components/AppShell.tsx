@@ -5,13 +5,13 @@ import Sidebar from "./Sidebar";
 import MobileNav from "./MobileNav";
 import SupabaseBanner from "./SupabaseBanner";
 import { useAuth } from "./AuthProvider";
+import { LogoMark } from "./Logo";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const {
     loading,
-    perfilLoading,
     user,
     perfil,
     esSuperadmin,
@@ -23,42 +23,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // Si eres superadmin sin trabajador y estás en "/", manda a /superadmin.
   useEffect(() => {
-    if (!loading && !perfilLoading && esSuperadmin && !perfil && (path === "/" || path === "")) {
+    if (!loading && esSuperadmin && !perfil && (path === "/" || path === "")) {
       router.replace("/superadmin");
     }
-  }, [loading, perfilLoading, esSuperadmin, perfil, path, router]);
+  }, [loading, esSuperadmin, perfil, path, router]);
 
   if (isLogin) return <>{children}</>;
 
-  // 1) Verificación de sesión inicial (debería ser <1s)
+  // Pantalla única de "Cargando aplicación…" mientras se inicializa todo.
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-sm" style={{ color: "#7B8794" }}>
-        Cargando…
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: "#F7F9FC" }}>
+        <div className="flex flex-col items-center gap-3">
+          <LogoMark size={56} />
+          <div className="flex items-center gap-2 text-sm" style={{ color: "#7B8794" }}>
+            <span
+              className="inline-block h-3 w-3 rounded-full animate-pulse"
+              style={{ background: "#17C7C8" }}
+            />
+            Cargando aplicación…
+          </div>
+        </div>
       </div>
     );
   }
 
-  // 2) Sin sesión → AuthProvider está redirigiendo a /login
+  // Sin sesión → AuthProvider redirige a /login
   if (!user) return null;
 
-  // 3) Estamos cargando el perfil tras un login → enseñamos el shell con loader
-  //    inline en vez de "Sin acceso", para evitar parpadeos.
-  if (perfilLoading) {
-    return (
-      <div className="flex min-h-screen flex-col md:flex-row">
-        <div className="hidden md:flex w-60 shrink-0 border-r bg-white" style={{ borderColor: "#E5EAF2" }} />
-        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
-          <div className="min-h-[60vh] flex items-center justify-center text-sm" style={{ color: "#7B8794" }}>
-            Cargando tu cuenta…
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // 4) Superadmin sin ficha (lo normal): se muestra el shell completo;
-  //    el sidebar le sirve el menú "Empresas".
+  // Superadmin sin ficha de trabajador (lo normal): shell completo.
   if (esSuperadmin && !perfil) {
     return (
       <div className="flex min-h-screen flex-col md:flex-row">
@@ -72,7 +66,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 5) Autenticado pero sin trabajador y sin ser superadmin → bloqueo.
+  // Autenticado pero sin trabajador y sin ser superadmin → bloqueo definitivo.
   if (!perfil) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -93,7 +87,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 6) Caso normal: usuario con ficha
+  // Caso normal
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />

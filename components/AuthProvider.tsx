@@ -31,10 +31,8 @@ type Ctx = {
   superadmin: PlataformaAdmin | null;
   esSuperadmin: boolean;
   rolEfectivo: RolEfectivo | null;
-  /** True mientras se verifica la sesión inicial (~1s). */
+  /** True hasta que sesión + perfil + empresa están cargados (o no hay sesión). */
   loading: boolean;
-  /** True mientras se carga superadmin/trabajador/empresa tras un login. */
-  perfilLoading: boolean;
   signOut: () => Promise<void>;
   reloadPerfil: () => Promise<void>;
 };
@@ -48,7 +46,6 @@ const AuthCtx = createContext<Ctx>({
   esSuperadmin: false,
   rolEfectivo: null,
   loading: true,
-  perfilLoading: false,
   signOut: async () => {},
   reloadPerfil: async () => {},
 });
@@ -74,22 +71,18 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [superadmin, setSuperadmin] = useState<PlataformaAdmin | null>(null);
   const [loading, setLoading] = useState(true);
-  const [perfilLoading, setPerfilLoading] = useState(false);
 
-  // Lock para evitar concurrent reloadPerfil. Si una llamada está en vuelo,
-  // las siguientes esperan a que termine en vez de duplicar el trabajo.
+  // Lock para evitar reloadPerfil concurrentes.
   const inFlightRef = useRef<Promise<void> | null>(null);
 
-  const _doReload = useCallback(async () => {
-    setPerfilLoading(true);
+  const _doReload = useCallback(async (): Promise<void> => {
     try {
-      // 1) Intento rápido: leer en paralelo plataforma_admins y trabajadores.
       let [sa, p] = await Promise.all([
         withTimeout(meSuperadmin(), 4000, null),
         withTimeout(meTrabajador(), 4000, null),
       ]);
 
-      // 2) Si nada en ninguna, bootstrap (idempotente) + re-lectura.
+      // Si nada en ninguna, bootstrap (idempotente) + re-lectura.
       if (!sa && !p) {
         await withTimeout(bootstrapMiTrabajador(), 6000, null);
         [sa, p] = await Promise.all([
@@ -101,7 +94,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setSuperadmin(sa);
       setPerfil(p);
 
-      // 3) Cargar empresa del trabajador (si tiene)
       if (p?.empresa_id) {
         const e = await withTimeout(getEmpresa(p.empresa_id), 4000, null);
         setEmpresa(e);
@@ -113,16 +105,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setPerfil(null);
       setEmpresa(null);
       setSuperadmin(null);
-    } finally {
-      setPerfilLoading(false);
     }
   }, []);
 
   // Coalesce: si ya hay una recarga en marcha, devolvemos la misma promesa.
   const reloadPerfil = useCallback(async () => {
-    if (inFlightRef.current) {
-      return inFlightRef.current;
-    }
+    if (inFlightRef.current) return inFlightRef.current;
     const p = _doReload().finally(() => {
       inFlightRef.current = null;
     });
@@ -131,7 +119,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }, [_doReload]);
 
   // ÚNICO punto de entrada: onAuthStateChange. Supabase emite INITIAL_SESSION
-  // al suscribirse, así que no hace falta un getSession manual.
+  // automáticamente al suscribirse.
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -139,10 +127,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
     let mounted = true;
 
-    // Salvavidas: si INITIAL_SESSION no llega en 4s, salir de loading igualmente.
+    // Salvavidas: si todo se atasca, salir de loading a los 8s.
     const killSwitch = setTimeout(() => {
       if (mounted) setLoading(false);
-    }, 4000);
+    }, 8000);
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (!mounted) return;
@@ -150,13 +138,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setSession(s ?? null);
       setUser(s?.user ?? null);
 
-      // INITIAL_SESSION marca el fin del "loading inicial" de la app.
-      if (event === "INITIAL_SESSION") {
-        clearTimeout(killSwitch);
+      if (event === "SIGNED_OUT") {
+        setPerfil(null);
+        setEmpresa(null);
+        setSuperadmin(null);
         setLoading(false);
+        return;
       }
 
-      // Eventos que requieren cargar el perfil
+      // Eventos que requieren cargar el perfil: la primera carga, un login,
+      // o cuando los datos del usuario cambian.
       const debeCargarPerfil =
         s?.user &&
         (event === "INITIAL_SESSION" ||
@@ -164,12 +155,21 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           event === "USER_UPDATED");
 
       if (debeCargarPerfil) {
+        // Mantenemos loading=true hasta que el perfil esté cargado.
+        setLoading(true);
         await reloadPerfil();
-      } else if (event === "SIGNED_OUT") {
-        setPerfil(null);
-        setEmpresa(null);
-        setSuperadmin(null);
+        if (!mounted) return;
+        clearTimeout(killSwitch);
+        setLoading(false);
+        return;
       }
+
+      // INITIAL_SESSION sin usuario → no hay sesión, salir de loading.
+      if (event === "INITIAL_SESSION") {
+        clearTimeout(killSwitch);
+        setLoading(false);
+      }
+      // TOKEN_REFRESHED y otros: no tocamos loading.
     });
 
     return () => {
@@ -210,7 +210,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         esSuperadmin,
         rolEfectivo,
         loading,
-        perfilLoading,
         signOut,
         reloadPerfil,
       }}
