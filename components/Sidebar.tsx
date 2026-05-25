@@ -4,9 +4,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { LogoMark } from "./Logo";
 
-type Item = { href: string; label: string; icon: string; adminOnly?: boolean };
+type Item = { href: string; label: string; icon: string; adminOnly?: boolean; superadminOnly?: boolean };
 
 const ITEMS: Item[] = [
+  { href: "/superadmin",   label: "Empresas",    icon: "🏢", superadminOnly: true },
   { href: "/",             label: "Hoy",         icon: "🏠" },
   { href: "/calendario",   label: "Calendario",  icon: "📅" },
   { href: "/resumen",      label: "Semanas",     icon: "🗓️" },
@@ -19,10 +20,17 @@ const ITEMS: Item[] = [
 
 export default function Sidebar() {
   const path = usePathname();
-  const { perfil, user, signOut } = useAuth();
+  const { perfil, empresa, user, esSuperadmin, signOut } = useAuth();
   const isAdmin = perfil?.rol === "admin";
 
-  const items = ITEMS.filter((i) => !i.adminOnly || isAdmin);
+  const items = ITEMS.filter((i) => {
+    if (i.superadminOnly) return esSuperadmin;
+    if (i.adminOnly) return isAdmin || esSuperadmin;
+    return true;
+  });
+
+  // Etiqueta bajo "vacantia": nombre de la empresa o "Plataforma" para superadmin
+  const sub = empresa?.nombre ?? (esSuperadmin ? "Plataforma" : "by Vacantia");
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-white" style={{ borderColor: "#E5EAF2" }}>
@@ -32,8 +40,8 @@ export default function Sidebar() {
           <div className="text-lg font-bold tracking-tight" style={{ color: "#062E73" }}>
             vacantia
           </div>
-          <div className="text-[10px] uppercase tracking-wider" style={{ color: "#17C7C8" }}>
-            by Grupo Garantía
+          <div className="text-[10px] uppercase tracking-wider truncate max-w-[150px]" style={{ color: "#17C7C8" }} title={sub}>
+            {sub}
           </div>
         </div>
       </div>
@@ -79,7 +87,7 @@ export default function Sidebar() {
               {perfil?.nombre ?? user?.email ?? "Usuario"}
             </div>
             <div className="text-[10px] uppercase tracking-wide" style={{ color: "#7B8794" }}>
-              {isAdmin ? "Administrador" : "Trabajador"}
+              {esSuperadmin ? "Superadmin" : isAdmin ? "Administrador" : "Trabajador"}
             </div>
           </div>
         </div>

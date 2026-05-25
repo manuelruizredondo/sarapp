@@ -4,8 +4,21 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// POST → Si el usuario autenticado no tiene fila en `trabajadores`,
-// se la crea. Si es el primer usuario del sistema, lo marca como admin.
+/**
+ * POST → Enlaza el user autenticado con su ficha en plataforma_admins o
+ * trabajadores. NO crea trabajadores nuevos automáticamente: los empleados se
+ * dan de alta desde la UI (admin de empresa o superadmin) con empresa_id explícito.
+ *
+ * Comportamientos posibles:
+ *  - El email está en plataforma_admins sin user_id → lo enlaza (superadmin).
+ *  - Existe una fila en trabajadores con ese email y sin user_id → la enlaza
+ *    (caso normal: el admin acaba de crear al trabajador y este se loguea por
+ *    primera vez). Pero esto YA no debería ocurrir porque /api/admin/users
+ *    crea el auth_user; queda como red de seguridad para imports antiguos.
+ *  - Ya tiene ficha → la devuelve.
+ *  - Ningún match → devuelve 200 con `trabajador: null`. El cliente debe
+ *    mostrar "tu cuenta no está vinculada a ninguna empresa".
+ */
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!auth?.startsWith("Bearer ")) {
@@ -14,14 +27,39 @@ export async function POST(req: NextRequest) {
   const token = auth.slice(7);
   const admin = getSupabaseAdmin();
 
-  // Validar token y obtener el user
   const { data: userRes, error: uErr } = await admin.auth.getUser(token);
   if (uErr || !userRes.user) {
     return NextResponse.json({ error: "Token inválido" }, { status: 401 });
   }
   const user = userRes.user;
 
-  // ¿Ya tiene ficha?
+  // 1) ¿Existe fila en plataforma_admins por email pendiente de enlazar?
+  if (user.email) {
+    const { data: saPending } = await admin
+      .from("plataforma_admins")
+      .select("*")
+      .eq("email", user.email)
+      .is("user_id", null)
+      .maybeSingle();
+    if (saPending) {
+      await admin
+        .from("plataforma_admins")
+        .update({ user_id: user.id })
+        .eq("id", saPending.id);
+    }
+
+    // Si está ya enlazada o se acaba de enlazar → es superadmin
+    const { data: sa } = await admin
+      .from("plataforma_admins")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (sa) {
+      return NextResponse.json({ ok: true, superadmin: sa, trabajador: null });
+    }
+  }
+
+  // 2) ¿Ya tiene ficha de trabajador?
   const { data: existing } = await admin
     .from("trabajadores")
     .select("*")
@@ -31,8 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, trabajador: existing, created: false });
   }
 
-  // Si hay fila con el mismo email pero sin user_id (creada manualmente o por
-  // import), la enlazamos en vez de crear duplicado.
+  // 3) ¿Hay una ficha huérfana con su mismo email? La enlazamos.
   if (user.email) {
     const { data: orphan } = await admin
       .from("trabajadores")
@@ -52,53 +89,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ¿Hay algún admin en el sistema? Si no, este será el primero
-  const { count: adminCount } = await admin
-    .from("trabajadores")
-    .select("*", { count: "exact", head: true })
-    .eq("rol", "admin");
-
-  const esPrimero = (adminCount ?? 0) === 0;
-  const rol = esPrimero ? "admin" : "trabajador";
-
-  // Calcular un color rotatorio según número total de trabajadores
-  const { count: totalCount } = await admin
-    .from("trabajadores")
-    .select("*", { count: "exact", head: true });
-  const paleta = [
-    "#062E73", "#17C7C8", "#63E0DA", "#16C784", "#F5B700",
-    "#E5484D", "#8b5cf6", "#ec4899", "#0ea5e9", "#f97316",
-  ];
-  const color = paleta[(totalCount ?? 0) % paleta.length];
-
-  // Nombre por defecto a partir del email
-  const local = (user.email ?? "").split("@")[0];
-  const nombre = local
-    ? local.charAt(0).toUpperCase() + local.slice(1).replace(/[\.\-_]+/g, " ")
-    : "Usuario";
-
-  const { data: created, error: insErr } = await admin
-    .from("trabajadores")
-    .insert({
-      nombre,
-      email: user.email,
-      user_id: user.id,
-      rol,
-      dias_vacaciones_anuales: 22,
-      color,
-      activo: true,
-    })
-    .select()
-    .single();
-
-  if (insErr) {
-    return NextResponse.json({ error: insErr.message }, { status: 400 });
-  }
-
+  // 4) No es superadmin y no tiene trabajador → cuenta sin asignar.
+  // El cliente debe mostrar un mensaje al usuario.
   return NextResponse.json({
     ok: true,
-    trabajador: created,
-    created: true,
-    promotedToAdmin: esPrimero,
+    trabajador: null,
+    error_amigable:
+      "Tu cuenta existe en Auth pero no está vinculada a ninguna empresa. Pide a tu administrador que te dé de alta.",
   });
 }

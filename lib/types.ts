@@ -1,7 +1,33 @@
 export type Rol = "admin" | "trabajador";
 
+// Rol efectivo del usuario logueado, computado en el cliente.
+// "superadmin" no vive en trabajadores.rol; vive en plataforma_admins.
+export type RolEfectivo = "superadmin" | "admin" | "trabajador";
+
+export type PlanEmpresa = "free" | "basic" | "pro" | "enterprise";
+
+export type Empresa = {
+  id: string;
+  nombre: string;
+  slug: string;
+  color: string;
+  plan: PlanEmpresa;
+  activo: boolean;
+  notas: string | null;
+  created_at?: string;
+};
+
+export type PlataformaAdmin = {
+  id: string;
+  email: string;
+  user_id: string | null;
+  nombre: string | null;
+  created_at?: string;
+};
+
 export type Trabajador = {
   id: string;
+  empresa_id: string;       // cada trabajador pertenece a una empresa
   nombre: string;
   apellidos: string | null;
   email: string | null;
@@ -19,6 +45,7 @@ export type Trabajador = {
 
 export type Festivo = {
   id: string;
+  empresa_id: string | null; // NULL = festivo global (nacional)
   fecha: string;
   nombre: string;
   ambito: "nacional" | "autonomico" | "local";
@@ -57,6 +84,7 @@ export type TipoAusencia =
 
 export type Ausencia = {
   id: string;
+  empresa_id: string;
   trabajador_id: string;
   tipo: TipoAusencia;
   fecha_inicio: string; // YYYY-MM-DD
@@ -70,6 +98,7 @@ export type EstadoAsistencia = "presente" | "ausente" | "teletrabajo" | "retraso
 
 export type Asistencia = {
   id: string;
+  empresa_id: string;
   trabajador_id: string;
   fecha: string;
   estado: EstadoAsistencia;

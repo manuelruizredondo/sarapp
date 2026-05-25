@@ -5,9 +5,10 @@ import { useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { LogoMark } from "./Logo";
 
-type Item = { href: string; label: string; icon: string; adminOnly?: boolean };
+type Item = { href: string; label: string; icon: string; adminOnly?: boolean; superadminOnly?: boolean };
 
 const ITEMS: Item[] = [
+  { href: "/superadmin",   label: "Empresas",    icon: "🏢", superadminOnly: true },
   { href: "/",             label: "Hoy",         icon: "🏠" },
   { href: "/calendario",   label: "Calendario",  icon: "📅" },
   { href: "/resumen",      label: "Semanas",     icon: "🗓️" },
@@ -20,10 +21,15 @@ const ITEMS: Item[] = [
 
 export default function MobileNav() {
   const path = usePathname();
-  const { perfil, user, signOut } = useAuth();
+  const { perfil, empresa, user, esSuperadmin, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const isAdmin = perfil?.rol === "admin";
-  const items = ITEMS.filter((i) => !i.adminOnly || isAdmin);
+  const items = ITEMS.filter((i) => {
+    if (i.superadminOnly) return esSuperadmin;
+    if (i.adminOnly) return isAdmin || esSuperadmin;
+    return true;
+  });
+  const sub = empresa?.nombre ?? (esSuperadmin ? "Plataforma" : null);
 
   return (
     <>
@@ -32,9 +38,16 @@ export default function MobileNav() {
         className="md:hidden sticky top-0 z-30 bg-white border-b flex items-center justify-between px-4 py-3"
         style={{ borderColor: "#E5EAF2" }}
       >
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
           <LogoMark size={28} />
-          <span className="font-bold tracking-tight" style={{ color: "#062E73" }}>vacantia</span>
+          <div className="min-w-0">
+            <div className="font-bold tracking-tight leading-tight" style={{ color: "#062E73" }}>vacantia</div>
+            {sub && (
+              <div className="text-[9px] uppercase tracking-wider truncate" style={{ color: "#17C7C8" }}>
+                {sub}
+              </div>
+            )}
+          </div>
         </Link>
         <button
           onClick={() => setOpen(true)}
@@ -98,7 +111,7 @@ export default function MobileNav() {
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{perfil?.nombre ?? user?.email}</div>
                   <div className="text-[10px] uppercase" style={{ color: "#7B8794" }}>
-                    {isAdmin ? "Administrador" : "Trabajador"}
+                    {esSuperadmin ? "Superadmin" : isAdmin ? "Administrador" : "Trabajador"}
                   </div>
                 </div>
               </div>

@@ -1,29 +1,29 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { deleteFestivo, listFestivos, upsertFestivo } from "@/lib/data";
+import Modal from "@/components/Modal";
+import {
+  deleteFestivo,
+  listFestivos,
+  upsertFestivo,
+} from "@/lib/data";
 import { Festivo } from "@/lib/types";
 import { fmt } from "@/lib/dates";
 import { useAuth } from "@/components/AuthProvider";
-
-const FESTIVOS_ES_2026: { fecha: string; nombre: string }[] = [
-  { fecha: "2026-01-01", nombre: "Año Nuevo" },
-  { fecha: "2026-01-06", nombre: "Epifanía del Señor" },
-  { fecha: "2026-04-03", nombre: "Viernes Santo" },
-  { fecha: "2026-05-01", nombre: "Fiesta del Trabajo" },
-  { fecha: "2026-08-15", nombre: "Asunción de la Virgen" },
-  { fecha: "2026-10-12", nombre: "Fiesta Nacional de España" },
-  { fecha: "2026-11-02", nombre: "Día de Todos los Santos" },
-  { fecha: "2026-12-07", nombre: "Día de la Constitución" },
-  { fecha: "2026-12-08", nombre: "Inmaculada Concepción" },
-  { fecha: "2026-12-25", nombre: "Natividad del Señor" },
-];
+import {
+  ANIOS_DISPONIBLES,
+  COMUNIDADES,
+  FESTIVOS_NACIONALES,
+  LOCALIDADES,
+  type FestivoEntry,
+} from "@/lib/festivosES";
 
 export default function FestivosPage() {
-  const { perfil } = useAuth();
+  const { perfil, empresa, esSuperadmin } = useAuth();
   const [items, setItems] = useState<Festivo[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false);
   const [form, setForm] = useState({ fecha: "", nombre: "", ambito: "nacional" as Festivo["ambito"] });
 
   async function reload() {
@@ -33,11 +33,16 @@ export default function FestivosPage() {
   }
   useEffect(() => { reload(); }, []);
 
+  // Empresa por defecto al crear:
+  //   - superadmin sin empresa concreta → global (empresa_id null)
+  //   - admin de empresa → su empresa
+  const empresaIdParaCrear = esSuperadmin ? null : empresa?.id ?? null;
+
   async function onAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!form.fecha || !form.nombre) return;
     try {
-      await upsertFestivo(form);
+      await upsertFestivo({ ...form, empresa_id: empresaIdParaCrear });
       setForm({ fecha: "", nombre: "", ambito: "nacional" });
       setAdding(false);
       await reload();
@@ -48,21 +53,15 @@ export default function FestivosPage() {
 
   async function onDelete(id: string) {
     if (!confirm("¿Eliminar este festivo?")) return;
-    await deleteFestivo(id);
-    await reload();
-  }
-
-  async function cargarNacionales2026() {
-    if (!confirm("¿Añadir los 10 festivos nacionales de España 2026?")) return;
-    for (const f of FESTIVOS_ES_2026) {
-      try {
-        await upsertFestivo({ ...f, ambito: "nacional" });
-      } catch (e) { /* ignora duplicados */ }
+    try {
+      await deleteFestivo(id);
+      await reload();
+    } catch (err: any) {
+      alert("Error: " + err.message);
     }
-    await reload();
   }
 
-  if (perfil && perfil.rol !== "admin") {
+  if (perfil && perfil.rol !== "admin" && !esSuperadmin) {
     return (
       <div>
         <PageHeader title="Festivos" subtitle="Solo el administrador puede gestionar festivos." />
@@ -83,8 +82,8 @@ export default function FestivosPage() {
         subtitle="Los festivos no cuentan como días de vacaciones consumidos"
         actions={
           <div className="flex gap-2">
-            <button className="btn-ghost" onClick={cargarNacionales2026}>
-              + Festivos España 2026
+            <button className="btn-ghost" onClick={() => setCatalogoAbierto(true)}>
+              + Catálogo España
             </button>
             <button className="btn-primary" onClick={() => setAdding(true)}>
               + Nuevo festivo
@@ -136,7 +135,7 @@ export default function FestivosPage() {
         <p className="text-sm text-slate-500">Cargando…</p>
       ) : items.length === 0 ? (
         <div className="card p-5 text-sm text-slate-500">
-          Aún no hay festivos. Pulsa "+ Festivos España 2026" para precargar los nacionales.
+          Aún no hay festivos. Pulsa <strong>"+ Catálogo España"</strong> para elegir los que necesitas (nacionales, comunidad y localidad).
         </div>
       ) : (
         <div className="space-y-4">
@@ -168,6 +167,390 @@ export default function FestivosPage() {
           ))}
         </div>
       )}
+
+      {catalogoAbierto && (
+        <CatalogoFestivosModal
+          empresaIdParaCrear={empresaIdParaCrear}
+          fechasExistentes={new Set(items.map((f) => f.fecha))}
+          onClose={() => setCatalogoAbierto(false)}
+          onAdded={async () => {
+            setCatalogoAbierto(false);
+            await reload();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// ============================================================
+// CATÁLOGO MODAL — selección de festivos por año/CC.AA./localidad
+// ============================================================
+type Seleccion = Map<string, { fecha: string; nombre: string; ambito: Festivo["ambito"] }>;
+
+function CatalogoFestivosModal({
+  empresaIdParaCrear,
+  fechasExistentes,
+  onClose,
+  onAdded,
+}: {
+  empresaIdParaCrear: string | null;
+  fechasExistentes: Set<string>;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [anio, setAnio] = useState<number>(ANIOS_DISPONIBLES[0]);
+  const [comunidadCodigo, setComunidadCodigo] = useState<string>("AN");
+  const [localidadSlug, setLocalidadSlug] = useState<string>("");
+  const [seleccion, setSeleccion] = useState<Seleccion>(() => {
+    // Precargar todos los nacionales del año inicial
+    const m: Seleccion = new Map();
+    for (const f of FESTIVOS_NACIONALES[ANIOS_DISPONIBLES[0]] ?? []) {
+      m.set(f.fecha, { ...f, ambito: "nacional" });
+    }
+    return m;
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Listas derivadas
+  const nacionales = FESTIVOS_NACIONALES[anio] ?? [];
+  const comunidad = useMemo(
+    () => COMUNIDADES.find((c) => c.codigo === comunidadCodigo),
+    [comunidadCodigo]
+  );
+  const autonomicos = comunidad?.festivos[anio] ?? [];
+  const localidadesDeLaCom = useMemo(
+    () => LOCALIDADES.filter((l) => l.comunidad === comunidadCodigo),
+    [comunidadCodigo]
+  );
+  const localidad = useMemo(
+    () => LOCALIDADES.find((l) => l.slug === localidadSlug),
+    [localidadSlug]
+  );
+  const locales = localidad?.festivos[anio] ?? [];
+
+  // Cuando cambia de comunidad, resetear localidad
+  useEffect(() => {
+    setLocalidadSlug("");
+  }, [comunidadCodigo]);
+
+  function toggle(f: FestivoEntry, ambito: Festivo["ambito"]) {
+    setSeleccion((prev) => {
+      const next = new Map(prev);
+      const key = f.fecha + "|" + f.nombre;
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.set(key, { fecha: f.fecha, nombre: f.nombre, ambito });
+      }
+      return next;
+    });
+  }
+
+  function isChecked(f: FestivoEntry) {
+    return seleccion.has(f.fecha + "|" + f.nombre);
+  }
+
+  function marcarTodos(lista: FestivoEntry[], ambito: Festivo["ambito"]) {
+    setSeleccion((prev) => {
+      const next = new Map(prev);
+      for (const f of lista) {
+        next.set(f.fecha + "|" + f.nombre, { ...f, ambito });
+      }
+      return next;
+    });
+  }
+  function desmarcarTodos(lista: FestivoEntry[]) {
+    setSeleccion((prev) => {
+      const next = new Map(prev);
+      for (const f of lista) {
+        next.delete(f.fecha + "|" + f.nombre);
+      }
+      return next;
+    });
+  }
+
+  async function onGuardar() {
+    if (seleccion.size === 0) return;
+    setBusy(true);
+    setError(null);
+    let ok = 0;
+    let skip = 0;
+    let errores = 0;
+    for (const f of seleccion.values()) {
+      if (fechasExistentes.has(f.fecha)) {
+        skip++;
+        continue;
+      }
+      try {
+        await upsertFestivo({
+          fecha: f.fecha,
+          nombre: f.nombre,
+          ambito: f.ambito,
+          empresa_id: empresaIdParaCrear,
+        });
+        ok++;
+      } catch (e: any) {
+        // El más común: clave duplicada → la BD ya lo tenía
+        if (e?.code === "23505" || /duplicate/i.test(e?.message ?? "")) {
+          skip++;
+        } else {
+          errores++;
+          console.error("Error añadiendo festivo", f, e);
+        }
+      }
+    }
+    setBusy(false);
+    if (errores > 0) {
+      setError(`Añadidos ${ok}, ya existían ${skip}, fallaron ${errores}. Revisa la consola.`);
+    } else {
+      onAdded();
+    }
+  }
+
+  return (
+    <Modal title="Catálogo de festivos en España" size="lg" onClose={onClose}>
+      <div className="space-y-4">
+        {/* Selector de año */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="label">Año</label>
+            <select
+              className="input"
+              value={anio}
+              onChange={(e) => setAnio(Number(e.target.value))}
+            >
+              {ANIOS_DISPONIBLES.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div className="text-xs ml-auto" style={{ color: "#7B8794" }}>
+            <strong>{seleccion.size}</strong> festivos seleccionados
+          </div>
+        </div>
+
+        {/* Sección NACIONALES */}
+        <SeccionFestivos
+          titulo="🇪🇸 Nacionales"
+          subtitulo="Calendario laboral estatal"
+          lista={nacionales}
+          ambito="nacional"
+          isChecked={isChecked}
+          onToggle={toggle}
+          onMarcarTodos={() => marcarTodos(nacionales, "nacional")}
+          onDesmarcarTodos={() => desmarcarTodos(nacionales)}
+          fechasExistentes={fechasExistentes}
+        />
+
+        {/* Sección COMUNIDAD AUTÓNOMA */}
+        <div className="card p-4 space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[200px]">
+              <label className="label">Comunidad autónoma</label>
+              <select
+                className="input"
+                value={comunidadCodigo}
+                onChange={(e) => setComunidadCodigo(e.target.value)}
+              >
+                {COMUNIDADES.map((c) => (
+                  <option key={c.codigo} value={c.codigo}>{c.nombre}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="btn-ghost text-xs"
+                onClick={() => marcarTodos(autonomicos, "autonomico")}
+              >Marcar todos</button>
+              <button type="button" className="btn-ghost text-xs"
+                onClick={() => desmarcarTodos(autonomicos)}
+              >Desmarcar</button>
+            </div>
+          </div>
+          {autonomicos.length === 0 ? (
+            <p className="text-xs" style={{ color: "#7B8794" }}>
+              Sin festivos autonómicos catalogados para {anio} en esta comunidad.
+            </p>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
+              {autonomicos.map((f) => (
+                <FestivoRow
+                  key={f.fecha + f.nombre}
+                  festivo={f}
+                  checked={isChecked(f)}
+                  yaExiste={fechasExistentes.has(f.fecha)}
+                  onToggle={() => toggle(f, "autonomico")}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Sección LOCALIDAD */}
+        <div className="card p-4 space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[200px]">
+              <label className="label">Localidad (opcional)</label>
+              <select
+                className="input"
+                value={localidadSlug}
+                onChange={(e) => setLocalidadSlug(e.target.value)}
+              >
+                <option value="">— Selecciona una localidad —</option>
+                {localidadesDeLaCom.map((l) => (
+                  <option key={l.slug} value={l.slug}>{l.nombre}</option>
+                ))}
+              </select>
+            </div>
+            {localidad && (
+              <div className="flex gap-2">
+                <button type="button" className="btn-ghost text-xs"
+                  onClick={() => marcarTodos(locales, "local")}
+                >Marcar todos</button>
+                <button type="button" className="btn-ghost text-xs"
+                  onClick={() => desmarcarTodos(locales)}
+                >Desmarcar</button>
+              </div>
+            )}
+          </div>
+          {!localidad ? (
+            <p className="text-xs" style={{ color: "#7B8794" }}>
+              Elige una localidad para ver sus festivos. Si tu ciudad no está en el catálogo, añade los locales manualmente desde "+ Nuevo festivo".
+            </p>
+          ) : locales.length === 0 ? (
+            <p className="text-xs" style={{ color: "#7B8794" }}>
+              Sin festivos locales catalogados para {anio} en {localidad.nombre}.
+            </p>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
+              {locales.map((f) => (
+                <FestivoRow
+                  key={f.fecha + f.nombre}
+                  festivo={f}
+                  checked={isChecked(f)}
+                  yaExiste={fechasExistentes.has(f.fecha)}
+                  onToggle={() => toggle(f, "local")}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {error && (
+          <div className="text-sm p-3 rounded-lg" style={{ background: "#FEE", color: "#E5484D" }}>
+            {error}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: "#E5EAF2" }}>
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={busy || seleccion.size === 0}
+            onClick={onGuardar}
+          >
+            {busy ? "Añadiendo…" : `Añadir ${seleccion.size} seleccionados`}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------- Sección reutilizable ----------
+function SeccionFestivos({
+  titulo,
+  subtitulo,
+  lista,
+  ambito,
+  isChecked,
+  onToggle,
+  onMarcarTodos,
+  onDesmarcarTodos,
+  fechasExistentes,
+}: {
+  titulo: string;
+  subtitulo: string;
+  lista: FestivoEntry[];
+  ambito: Festivo["ambito"];
+  isChecked: (f: FestivoEntry) => boolean;
+  onToggle: (f: FestivoEntry, ambito: Festivo["ambito"]) => void;
+  onMarcarTodos: () => void;
+  onDesmarcarTodos: () => void;
+  fechasExistentes: Set<string>;
+}) {
+  return (
+    <div className="card p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="font-semibold" style={{ color: "#062E73" }}>{titulo}</h4>
+          <p className="text-xs" style={{ color: "#7B8794" }}>{subtitulo}</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" className="btn-ghost text-xs" onClick={onMarcarTodos}>Marcar todos</button>
+          <button type="button" className="btn-ghost text-xs" onClick={onDesmarcarTodos}>Desmarcar</button>
+        </div>
+      </div>
+      {lista.length === 0 ? (
+        <p className="text-xs" style={{ color: "#7B8794" }}>Sin entradas.</p>
+      ) : (
+        <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
+          {lista.map((f) => (
+            <FestivoRow
+              key={f.fecha + f.nombre}
+              festivo={f}
+              checked={isChecked(f)}
+              yaExiste={fechasExistentes.has(f.fecha)}
+              onToggle={() => onToggle(f, ambito)}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------- Fila de festivo con checkbox ----------
+function FestivoRow({
+  festivo,
+  checked,
+  yaExiste,
+  onToggle,
+}: {
+  festivo: FestivoEntry;
+  checked: boolean;
+  yaExiste: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <li className="py-2.5 flex items-center gap-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="h-4 w-4 cursor-pointer"
+        style={{ accentColor: "#062E73" }}
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex-1 text-left flex items-center justify-between gap-3 min-w-0"
+      >
+        <div className="min-w-0">
+          <div className="text-sm truncate">{festivo.nombre}</div>
+          <div className="text-xs" style={{ color: "#7B8794" }}>
+            {fmt(festivo.fecha, "EEEE d 'de' MMMM yyyy")}
+          </div>
+        </div>
+        {yaExiste && (
+          <span className="badge shrink-0 text-[10px]"
+            style={{ background: "#E6FBFB", color: "#062E73", borderColor: "#17C7C8" }}>
+            ya añadido
+          </span>
+        )}
+      </button>
+    </li>
   );
 }

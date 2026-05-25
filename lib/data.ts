@@ -1,6 +1,13 @@
 "use client";
 import { supabase } from "./supabase";
-import type { Ausencia, Asistencia, Festivo, Trabajador } from "./types";
+import type {
+  Ausencia,
+  Asistencia,
+  Empresa,
+  Festivo,
+  PlataformaAdmin,
+  Trabajador,
+} from "./types";
 
 // ---------- TRABAJADORES ----------
 export async function listTrabajadores(): Promise<Trabajador[]> {
@@ -62,7 +69,8 @@ export async function listAusenciasRango(desde: string, hasta: string): Promise<
   return (data || []) as Ausencia[];
 }
 
-export async function createAusencia(a: Omit<Ausencia, "id">) {
+// empresa_id se rellena vía trigger SQL desde trabajador_id; no hace falta pasarlo.
+export async function createAusencia(a: Omit<Ausencia, "id" | "empresa_id">) {
   if (!supabase) throw new Error("Supabase no configurado");
   const { data, error } = await supabase
     .from("ausencias")
@@ -249,6 +257,87 @@ export async function meTrabajador(): Promise<Trabajador | null> {
     return null;
   }
   return (data as Trabajador) ?? null;
+}
+
+// ---------- SUPERADMIN ----------
+// Devuelve la fila de plataforma_admins del usuario logueado, o null.
+export async function meSuperadmin(): Promise<PlataformaAdmin | null> {
+  if (!supabase) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("plataforma_admins")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) {
+    // Si RLS bloquea la lectura es que no es superadmin → silencioso
+    return null;
+  }
+  return (data as PlataformaAdmin) ?? null;
+}
+
+// ---------- EMPRESAS ----------
+export async function listEmpresas(): Promise<Empresa[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("empresas")
+    .select("*")
+    .order("nombre", { ascending: true });
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return (data || []) as Empresa[];
+}
+
+export async function getEmpresa(id: string): Promise<Empresa | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("empresas")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    console.error(error);
+    return null;
+  }
+  return (data as Empresa) ?? null;
+}
+
+export async function superadminCrearEmpresa(payload: {
+  nombre: string;
+  slug: string;
+  color?: string;
+  plan?: "free" | "basic" | "pro" | "enterprise";
+  admin_email: string;
+  admin_password: string;
+  admin_nombre: string;
+}) {
+  const headers = { "Content-Type": "application/json", ...(await getAuthHeader()) };
+  const r = await fetch("/api/superadmin/empresas", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json.error ?? "Error creando empresa");
+  return json as { empresa: Empresa; admin: Trabajador };
+}
+
+export async function superadminEditarEmpresa(
+  id: string,
+  patch: Partial<Pick<Empresa, "nombre" | "slug" | "color" | "plan" | "activo" | "notas">>
+) {
+  const headers = { "Content-Type": "application/json", ...(await getAuthHeader()) };
+  const r = await fetch(`/api/superadmin/empresas?id=${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(patch),
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json.error ?? "Error editando empresa");
+  return json.empresa as Empresa;
 }
 
 // ---------- ASISTENCIAS ----------

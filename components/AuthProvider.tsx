@@ -9,13 +9,27 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { supabase, supabaseReady } from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
-import { bootstrapMiTrabajador, meTrabajador } from "@/lib/data";
-import type { Trabajador } from "@/lib/types";
+import {
+  bootstrapMiTrabajador,
+  getEmpresa,
+  meSuperadmin,
+  meTrabajador,
+} from "@/lib/data";
+import type {
+  Empresa,
+  PlataformaAdmin,
+  RolEfectivo,
+  Trabajador,
+} from "@/lib/types";
 
 type Ctx = {
   user: User | null;
   session: Session | null;
   perfil: Trabajador | null;
+  empresa: Empresa | null;
+  superadmin: PlataformaAdmin | null;
+  esSuperadmin: boolean;
+  rolEfectivo: RolEfectivo | null;
   loading: boolean;
   signOut: () => Promise<void>;
   reloadPerfil: () => Promise<void>;
@@ -25,6 +39,10 @@ const AuthCtx = createContext<Ctx>({
   user: null,
   session: null,
   perfil: null,
+  empresa: null,
+  superadmin: null,
+  esSuperadmin: false,
+  rolEfectivo: null,
   loading: true,
   signOut: async () => {},
   reloadPerfil: async () => {},
@@ -40,28 +58,55 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [perfil, setPerfil] = useState<Trabajador | null>(null);
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [superadmin, setSuperadmin] = useState<PlataformaAdmin | null>(null);
   const [loading, setLoading] = useState(true);
 
   const reloadPerfil = useCallback(async () => {
     try {
-      // Intenta leer la ficha del trabajador
+      // 1) ¿Es superadmin (plataforma_admins)?
+      const sa = await Promise.race<Promise<PlataformaAdmin | null>>([
+        meSuperadmin(),
+        new Promise<PlataformaAdmin | null>((resolve) =>
+          setTimeout(() => resolve(null), 5000)
+        ),
+      ]);
+      setSuperadmin(sa);
+
+      // 2) Ficha de trabajador (puede no existir si solo eres superadmin)
       let p = await Promise.race<Promise<Trabajador | null>>([
         meTrabajador(),
-        new Promise<Trabajador | null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        new Promise<Trabajador | null>((resolve) =>
+          setTimeout(() => resolve(null), 5000)
+        ),
       ]);
 
-      // Si no hay ficha, intenta auto-crearla (primer usuario → admin)
-      if (!p) {
+      // 3) Si no es superadmin y no tiene ficha → intentamos bootstrap (enlazar
+      //    a una ficha pre-creada con el mismo email, p.ej. el primer admin
+      //    de una empresa que ha sido dada de alta por el superadmin).
+      if (!sa && !p) {
         p = await Promise.race<Promise<Trabajador | null>>([
           bootstrapMiTrabajador(),
-          new Promise<Trabajador | null>((resolve) => setTimeout(() => resolve(null), 7000)),
+          new Promise<Trabajador | null>((resolve) =>
+            setTimeout(() => resolve(null), 7000)
+          ),
         ]);
       }
 
       setPerfil(p);
+
+      // 4) Cargar la empresa del trabajador (si tiene)
+      if (p?.empresa_id) {
+        const e = await getEmpresa(p.empresa_id);
+        setEmpresa(e);
+      } else {
+        setEmpresa(null);
+      }
     } catch (e) {
       console.error("Error cargando perfil:", e);
       setPerfil(null);
+      setEmpresa(null);
+      setSuperadmin(null);
     }
   }, []);
 
@@ -72,13 +117,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
     let mounted = true;
 
-    // Salvavidas: si nada termina en 7s, sal del estado de carga igualmente
     const killSwitch = setTimeout(() => {
       if (mounted) {
         console.warn("AuthProvider killSwitch: forzando salir de loading");
         setLoading(false);
       }
-    }, 7000);
+    }, 8000);
 
     (async () => {
       try {
@@ -104,8 +148,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, s) => {
       setSession(s ?? null);
       setUser(s?.user ?? null);
-      if (s?.user) await reloadPerfil();
-      else setPerfil(null);
+      if (s?.user) {
+        await reloadPerfil();
+      } else {
+        setPerfil(null);
+        setEmpresa(null);
+        setSuperadmin(null);
+      }
     });
     return () => {
       mounted = false;
@@ -128,8 +177,26 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     router.replace("/login");
   };
 
+  const esSuperadmin = !!superadmin;
+  const rolEfectivo: RolEfectivo | null = esSuperadmin
+    ? "superadmin"
+    : perfil?.rol ?? null;
+
   return (
-    <AuthCtx.Provider value={{ user, session, perfil, loading, signOut, reloadPerfil }}>
+    <AuthCtx.Provider
+      value={{
+        user,
+        session,
+        perfil,
+        empresa,
+        superadmin,
+        esSuperadmin,
+        rolEfectivo,
+        loading,
+        signOut,
+        reloadPerfil,
+      }}
+    >
       {children}
     </AuthCtx.Provider>
   );
