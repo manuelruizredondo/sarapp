@@ -1,11 +1,27 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Sidebar from "./Sidebar";
 import MobileNav from "./MobileNav";
 import SupabaseBanner from "./SupabaseBanner";
 import { useAuth } from "./AuthProvider";
 import { LogoMark } from "./Logo";
+import Spinner from "./Spinner";
+
+// Pantalla de carga a pantalla completa (logo + bolas orbitando).
+function LoaderScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#F7F9FC" }}>
+      <div className="flex flex-col items-center gap-4">
+        <LogoMark size={56} />
+        <Spinner size={44} />
+        <div className="text-sm" style={{ color: "#7B8794" }}>
+          Cargando aplicación…
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -21,6 +37,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isLogin = path === "/login";
 
+  // Tras el login hay un instante en que la sesión ya existe pero el perfil
+  // todavía se está cargando. Antes eso provocaba un parpadeo de la pantalla
+  // "Sin acceso asignado". Reintentamos la carga una vez (mostrando el loader)
+  // y solo mostramos el bloqueo si de verdad no hay perfil.
+  const [retrying, setRetrying] = useState(false);
+  const retriedRef = useRef(false);
+
   // Si eres superadmin sin trabajador y estás en "/", manda a /superadmin.
   useEffect(() => {
     if (!loading && esSuperadmin && !perfil && (path === "/" || path === "")) {
@@ -28,26 +51,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [loading, esSuperadmin, perfil, path, router]);
 
+  // Auto-reintento de carga de perfil para evitar el flash de "Sin acceso".
+  useEffect(() => {
+    if (perfil || esSuperadmin || !user) {
+      retriedRef.current = false; // reset para un futuro login
+      return;
+    }
+    if (!loading && !retriedRef.current) {
+      retriedRef.current = true;
+      setRetrying(true);
+      reloadPerfil().finally(() => setRetrying(false));
+    }
+  }, [loading, user, perfil, esSuperadmin, reloadPerfil]);
+
   if (isLogin) return <>{children}</>;
 
-  // Pantalla única de "Cargando aplicación…" mientras se inicializa todo.
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center"
-        style={{ background: "#F7F9FC" }}>
-        <div className="flex flex-col items-center gap-3">
-          <LogoMark size={56} />
-          <div className="flex items-center gap-2 text-sm" style={{ color: "#7B8794" }}>
-            <span
-              className="inline-block h-3 w-3 rounded-full animate-pulse"
-              style={{ background: "#17C7C8" }}
-            />
-            Cargando aplicación…
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Pantalla única de carga mientras se inicializa todo o se reintenta el perfil.
+  if (loading || retrying) return <LoaderScreen />;
 
   // Sin sesión → AuthProvider redirige a /login
   if (!user) return null;
