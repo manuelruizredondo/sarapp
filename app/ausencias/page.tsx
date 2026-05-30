@@ -180,7 +180,7 @@ export default function AusenciasPage() {
 
   async function onDelete(a: Ausencia) {
     if (a.aprobado) {
-      alert("Esta ausencia está validada 🚩. Quita la validación antes de borrarla.");
+      alert("Esta ausencia está validada ✓. Quita la validación antes de borrarla.");
       return;
     }
     if (!confirm("¿Eliminar esta ausencia?")) return;
@@ -190,7 +190,7 @@ export default function AusenciasPage() {
 
   function startEdit(a: Ausencia) {
     if (a.aprobado) {
-      alert("Esta ausencia está validada 🚩. Quita la validación antes de editarla.");
+      alert("Esta ausencia está validada ✓. Quita la validación antes de editarla.");
       return;
     }
     setForm({
@@ -331,14 +331,14 @@ export default function AusenciasPage() {
                           }
                           title={a.aprobado ? "Click para quitar la validación" : "Click para validar"}
                         >
-                          {a.aprobado ? "🚩 Validada" : "⏳ Pendiente"}
+                          {a.aprobado ? <><span style={{ color: "#16C784" }} className="font-bold">✓</span> Validada</> : "⏳ Pendiente"}
                         </button>
                       ) : (
                         <span className="badge" style={a.aprobado
                           ? { background: "#E6FBFB", color: "#062E73", borderColor: "#17C7C8" }
                           : { background: "#FFF8E1", color: "#7a5d00", borderColor: "#F5B700" }
                         }>
-                          {a.aprobado ? "🚩 Validada" : "⏳ Pendiente"}
+                          {a.aprobado ? <><span style={{ color: "#16C784" }} className="font-bold">✓</span> Validada</> : "⏳ Pendiente"}
                         </span>
                       )}
                     </td>
@@ -356,7 +356,7 @@ export default function AusenciasPage() {
                             className="btn-ghost mr-1"
                             onClick={() => startEdit(a)}
                             disabled={a.aprobado}
-                            title={a.aprobado ? "Quita la validación 🚩 antes de editar" : "Editar ausencia"}
+                            title={a.aprobado ? "Quita la validación ✓ antes de editar" : "Editar ausencia"}
                             style={a.aprobado ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
                           >
                             {a.aprobado ? "🔒 " : ""}Editar
@@ -369,7 +369,7 @@ export default function AusenciasPage() {
                             }
                             onClick={() => onDelete(a)}
                             disabled={a.aprobado}
-                            title={a.aprobado ? "Quita la validación 🚩 antes de borrar" : "Borrar ausencia"}
+                            title={a.aprobado ? "Quita la validación ✓ antes de borrar" : "Borrar ausencia"}
                           >
                             Borrar
                           </button>
@@ -428,7 +428,7 @@ export default function AusenciasPage() {
                   onChange={(e) => setForm({ ...form, aprobado: e.target.checked })}
                 />
                 <label htmlFor="aprobado" className="text-sm flex items-center gap-1">
-                  <span>🚩</span> Marcar como <strong>validada</strong> por el administrador
+                  <span className="font-bold" style={{ color: "#16C784" }}>✓</span> Marcar como <strong>validada</strong> por el administrador
                 </label>
               </div>
               <div className="md:col-span-2 flex items-center justify-between pt-2">

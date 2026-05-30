@@ -128,7 +128,7 @@ export default function CalendarioPage() {
         ))}
         <span className="mx-2" style={{ color: "#E5EAF2" }}>|</span>
         <div className="flex items-center gap-1.5">
-          <span>🚩</span><span style={{ color: "#1F2937" }}>Validada</span>
+          <span className="font-bold" style={{ color: "#16C784" }}>✓</span><span style={{ color: "#1F2937" }}>Validada</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span
@@ -214,7 +214,7 @@ export default function CalendarioPage() {
                             style={{ outline: `1px solid ${fg}` }}
                           />
                           <span className="truncate">{t?.nombre ?? "—"}</span>
-                          {!pendiente && <span className="ml-auto">🚩</span>}
+                          {!pendiente && <span className="ml-auto font-bold">✓</span>}
                         </div>
                       );
                     })}

@@ -146,7 +146,7 @@ function AdminDashboard({
                 {pendientes.length} ausencia{pendientes.length === 1 ? "" : "s"} pendiente{pendientes.length === 1 ? "" : "s"} de validar
               </div>
               <div className="text-xs" style={{ color: "#7B8794" }}>
-                Revísalas y márcalas con la 🚩 cuando estén aprobadas.
+                Revísalas y márcalas como validadas ✓ cuando estén aprobadas.
               </div>
             </div>
           </div>
@@ -655,7 +655,7 @@ function TrabajadorDashboard({
                     {fmt(a.fecha_inicio, "dd/MM")} – {fmt(a.fecha_fin, "dd/MM")} ({diasEntre(a.fecha_inicio, a.fecha_fin)}d)
                   </span>
                 </div>
-                {a.aprobado ? <span title="Validada">🚩</span> : <span className="text-xs" style={{ color: "#F5B700" }}>Pendiente</span>}
+                {a.aprobado ? <span className="text-xs font-semibold" title="Validada" style={{ color: "#16C784" }}>✓ Validada</span> : <span className="text-xs" style={{ color: "#F5B700" }}>Pendiente</span>}
               </li>
             ))}
           </ul>
