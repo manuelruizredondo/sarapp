@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import {
@@ -40,15 +40,17 @@ export default function TrabajadoresPage() {
   }
   useEffect(() => { reload(); }, []);
 
-  const festivosISO = new Set(festivos.map((f) => f.fecha));
+  const festivosISO = useMemo(() => new Set(festivos.map((f) => f.fecha)), [festivos]);
 
   function diasConsumidos(trabajadorId: string) {
-    const year = new Date().getFullYear();
+    const year = String(new Date().getFullYear());
     return ausencias
       .filter((a) =>
         a.trabajador_id === trabajadorId &&
         a.tipo === "vacaciones" &&
-        new Date(a.fecha_inicio).getFullYear() === year
+        // La fecha viene como "YYYY-MM-DD"; comparamos el prefijo del año para
+        // evitar el desfase de zona horaria de new Date("YYYY-MM-DD") (parsea en UTC).
+        a.fecha_inicio.slice(0, 4) === year
       )
       .reduce((acc, a) => acc + diasLaborables(a.fecha_inicio, a.fecha_fin, festivosISO), 0);
   }

@@ -70,7 +70,8 @@ export default function FestivosPage() {
   }
 
   const porAnio = items.reduce<Record<number, Festivo[]>>((acc, f) => {
-    const y = new Date(f.fecha).getFullYear();
+    // "YYYY-MM-DD" → año sin pasar por new Date() (evita el desfase UTC).
+    const y = Number(f.fecha.slice(0, 4));
     (acc[y] = acc[y] || []).push(f);
     return acc;
   }, {});
@@ -275,32 +276,38 @@ function CatalogoFestivosModal({
     if (seleccion.size === 0) return;
     setBusy(true);
     setError(null);
+
+    // Los que ya existen en la BD los saltamos sin llamar a la API.
+    const aInsertar = [...seleccion.values()].filter((f) => !fechasExistentes.has(f.fecha));
+    let skip = seleccion.size - aInsertar.length;
     let ok = 0;
-    let skip = 0;
     let errores = 0;
-    for (const f of seleccion.values()) {
-      if (fechasExistentes.has(f.fecha)) {
-        skip++;
-        continue;
-      }
-      try {
-        await upsertFestivo({
+
+    // Insertamos en paralelo en vez de uno a uno (antes era O(n) secuencial).
+    const resultados = await Promise.allSettled(
+      aInsertar.map((f) =>
+        upsertFestivo({
           fecha: f.fecha,
           nombre: f.nombre,
           ambito: f.ambito,
           empresa_id: empresaIdParaCrear,
-        });
+        })
+      )
+    );
+    resultados.forEach((r, i) => {
+      if (r.status === "fulfilled") {
         ok++;
-      } catch (e: any) {
+      } else {
+        const e: any = r.reason;
         // El más común: clave duplicada → la BD ya lo tenía
         if (e?.code === "23505" || /duplicate/i.test(e?.message ?? "")) {
           skip++;
         } else {
           errores++;
-          console.error("Error añadiendo festivo", f, e);
+          console.error("Error añadiendo festivo", aInsertar[i], e);
         }
       }
-    }
+    });
     setBusy(false);
     if (errores > 0) {
       setError(`Añadidos ${ok}, ya existían ${skip}, fallaron ${errores}. Revisa la consola.`);

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 
 export default function Modal({
   title,
@@ -12,10 +12,15 @@ export default function Modal({
   onClose: () => void;
   size?: "sm" | "md" | "lg";
 }) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function esc(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", esc);
     document.body.style.overflow = "hidden";
+    // Mover el foco al diálogo al abrirlo (accesibilidad / lectores de pantalla).
+    panelRef.current?.focus();
     return () => {
       window.removeEventListener("keydown", esc);
       document.body.style.overflow = "";
@@ -35,11 +40,16 @@ export default function Modal({
       onClick={onClose}
     >
       <div
-        className={"bg-white rounded-2xl w-full " + widths[size] + " shadow-soft"}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={"bg-white rounded-2xl w-full outline-none " + widths[size] + " shadow-soft"}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "#E5EAF2" }}>
-          <h3 className="font-semibold" style={{ color: "#062E73" }}>{title}</h3>
+          <h3 id={titleId} className="font-semibold" style={{ color: "#062E73" }}>{title}</h3>
           <button onClick={onClose} aria-label="Cerrar" style={{ color: "#7B8794" }}>✕</button>
         </div>
         <div className="p-5 max-h-[80vh] overflow-y-auto">{children}</div>

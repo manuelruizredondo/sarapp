@@ -40,7 +40,9 @@ export default function TrabajadorDetalle() {
   const festivosISO = useMemo(() => new Set(festivos.map((f) => f.fecha)), [festivos]);
 
   const ausenciasAnio = useMemo(
-    () => ausencias.filter((a) => new Date(a.fecha_inicio).getFullYear() === year),
+    // Comparamos el prefijo "YYYY" de la fecha para no depender de la zona horaria
+    // (new Date("YYYY-MM-DD") parsea en UTC y desplaza el 1 de enero / 31 de diciembre).
+    () => ausencias.filter((a) => a.fecha_inicio.slice(0, 4) === String(year)),
     [ausencias, year]
   );
 

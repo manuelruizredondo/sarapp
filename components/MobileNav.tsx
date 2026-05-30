@@ -10,8 +10,8 @@ type Item = { href: string; label: string; icon: string; adminOnly?: boolean; su
 const ITEMS: Item[] = [
   { href: "/superadmin",   label: "Empresas",    icon: "🏢", superadminOnly: true },
   { href: "/",             label: "Hoy",         icon: "🏠" },
-  { href: "/calendario",   label: "Calendario",  icon: "📅" },
-  { href: "/resumen",      label: "Semanas",     icon: "🗓️" },
+  { href: "/calendario",   label: "Calendario",  icon: "📅", adminOnly: true },
+  { href: "/resumen",      label: "Semanas",     icon: "🗓️", adminOnly: true },
   { href: "/ausencias",    label: "Registro de ausencias", icon: "🏖️" },
   { href: "/asistencia",   label: "Asistencia",  icon: "✅", adminOnly: true },
   { href: "/trabajadores", label: "Trabajadores",icon: "👥", adminOnly: true },

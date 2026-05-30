@@ -75,7 +75,7 @@ export default function Dashboard() {
   }
 
   if (!isAdmin) {
-    return <TrabajadorDashboard trabajadores={trabajadores} ausencias={ausencias} hoy={hoy} />;
+    return <TrabajadorDashboard ausencias={ausencias} hoy={hoy} />;
   }
 
   return <AdminDashboard trabajadores={trabajadores} ausencias={ausencias} hoy={hoy} />;
@@ -623,11 +623,9 @@ function FilaTrabajador({
 // DASHBOARD TRABAJADOR (vista simple)
 // ============================================================
 function TrabajadorDashboard({
-  trabajadores,
   ausencias,
   hoy,
 }: {
-  trabajadores: Trabajador[];
   ausencias: Ausencia[];
   hoy: Date;
 }) {
@@ -638,7 +636,6 @@ function TrabajadorDashboard({
     .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio));
 
   const ausenciasHoy = ausencias.filter((a) => incluyeFecha(hoyISO, a.fecha_inicio, a.fecha_fin));
-  const trabPorId = Object.fromEntries(trabajadores.map((t) => [t.id, t]));
   const proximos7 = Array.from({ length: 7 }, (_, i) => addDays(hoy, i));
 
   return (
@@ -665,48 +662,37 @@ function TrabajadorDashboard({
         )}
       </section>
 
-      {/* Quién está fuera hoy */}
+      {/* Tu estado hoy */}
       <section className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold" style={{ color: "#062E73" }}>Quién está fuera hoy</h2>
-          <span className="text-xs" style={{ color: "#7B8794" }}>{ausenciasHoy.length} persona{ausenciasHoy.length === 1 ? "" : "s"}</span>
-        </div>
+        <h2 className="font-semibold mb-3" style={{ color: "#062E73" }}>Tu estado hoy</h2>
         {ausenciasHoy.length === 0 ? (
-          <p className="text-sm" style={{ color: "#7B8794" }}>Nadie está ausente hoy. ✨</p>
+          <p className="text-sm" style={{ color: "#16C784" }}>Hoy estás disponible. ✨</p>
         ) : (
-          <ul className="divide-y" style={{ borderColor: "#E5EAF2" }}>
-            {ausenciasHoy.map((a) => {
-              const t = trabPorId[a.trabajador_id];
-              return (
-                <li key={a.id} className="py-2.5 flex items-center gap-3">
-                  <span
-                    className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                    style={{ backgroundColor: t?.color || COLOR_DEFAULT }}
-                  >
-                    {(t?.nombre || "?").charAt(0).toUpperCase()}
-                  </span>
-                  <span className="text-sm flex-1 truncate">{t?.nombre} {t?.apellidos ?? ""}</span>
-                  <span className={"badge text-xs " + TIPO_COLOR[a.tipo]}>{TIPO_LABEL[a.tipo]}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={"badge " + TIPO_COLOR[ausenciasHoy[0].tipo]}>{TIPO_LABEL[ausenciasHoy[0].tipo]}</span>
+            <span className="text-sm" style={{ color: "#7B8794" }}>
+              {fmt(ausenciasHoy[0].fecha_inicio, "dd/MM")} – {fmt(ausenciasHoy[0].fecha_fin, "dd/MM")}
+            </span>
+            {!ausenciasHoy[0].aprobado && (
+              <span className="text-xs" style={{ color: "#F5B700" }}>· pendiente de validar</span>
+            )}
+          </div>
         )}
       </section>
 
-      {/* Próximos 7 días */}
+      {/* Tus próximos 7 días */}
       <section className="card p-5">
-        <h2 className="font-semibold mb-3" style={{ color: "#062E73" }}>Próximos 7 días</h2>
+        <h2 className="font-semibold mb-3" style={{ color: "#062E73" }}>Tus próximos 7 días</h2>
         <div className="grid grid-cols-7 gap-2">
           {proximos7.map((d) => {
             const dISO = toISO(d);
-            const dia = ausencias.filter((a) => incluyeFecha(dISO, a.fecha_inicio, a.fecha_fin));
+            const a = ausencias.find((x) => incluyeFecha(dISO, x.fecha_inicio, x.fecha_fin));
             return (
               <div key={dISO} className="rounded-lg border p-2 text-center" style={{ borderColor: "#E5EAF2" }}>
                 <div className="text-[10px] uppercase" style={{ color: "#7B8794" }}>{fmt(d, "EEE")}</div>
                 <div className="text-sm font-bold">{fmt(d, "dd")}</div>
-                <div className="mt-1 text-[10px]" style={{ color: dia.length ? "#E5484D" : "#16C784" }}>
-                  {dia.length ? `${dia.length} fuera` : "—"}
+                <div className="mt-1 text-[10px] truncate" style={{ color: a ? "#E5484D" : "#16C784" }} title={a ? TIPO_LABEL[a.tipo] : ""}>
+                  {a ? TIPO_LABEL[a.tipo].toLowerCase() : "—"}
                 </div>
               </div>
             );
