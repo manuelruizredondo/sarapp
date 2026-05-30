@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useRef } from "react";
+import { X } from "lucide-react";
 
 export default function Modal({
   title,
@@ -50,7 +51,9 @@ export default function Modal({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "#E5EAF2" }}>
           <h3 id={titleId} className="font-semibold" style={{ color: "#062E73" }}>{title}</h3>
-          <button onClick={onClose} aria-label="Cerrar" style={{ color: "#7B8794" }}>✕</button>
+          <button onClick={onClose} aria-label="Cerrar" style={{ color: "#7B8794" }}>
+            <X size={18} strokeWidth={1.75} />
+          </button>
         </div>
         <div className="p-5 max-h-[80vh] overflow-y-auto">{children}</div>
       </div>

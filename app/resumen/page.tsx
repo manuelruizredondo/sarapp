@@ -13,6 +13,7 @@ import {
 import { fmt, incluyeFecha, semanasDelMes, toISO } from "@/lib/dates";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format } from "date-fns";
 import { es } from "date-fns/locale";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ResumenPage() {
   const today = new Date();
@@ -80,11 +81,15 @@ export default function ResumenPage() {
         subtitle="Quién está fuera cada semana del mes"
         actions={
           <div className="flex items-center gap-2">
-            <button className="btn-ghost" onClick={prevMonth}>‹</button>
+            <button className="btn-ghost inline-flex items-center" onClick={prevMonth} aria-label="Mes anterior">
+              <ChevronLeft size={18} strokeWidth={1.75} />
+            </button>
             <div className="text-sm font-semibold w-40 text-center capitalize">
               {format(new Date(year, month, 1), "LLLL yyyy", { locale: es })}
             </div>
-            <button className="btn-ghost" onClick={nextMonth}>›</button>
+            <button className="btn-ghost inline-flex items-center" onClick={nextMonth} aria-label="Mes siguiente">
+              <ChevronRight size={18} strokeWidth={1.75} />
+            </button>
             <button
               className="btn-ghost ml-2 text-xs"
               onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); }}

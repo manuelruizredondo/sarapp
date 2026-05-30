@@ -1,29 +1,17 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { LogoMark } from "./Logo";
-
-type Item = { href: string; label: string; icon: string; adminOnly?: boolean; superadminOnly?: boolean };
-
-const ITEMS: Item[] = [
-  { href: "/superadmin",   label: "Empresas",    icon: "🏢", superadminOnly: true },
-  { href: "/",             label: "Hoy",         icon: "🏠" },
-  { href: "/calendario",   label: "Calendario",  icon: "📅", adminOnly: true },
-  { href: "/resumen",      label: "Semanas",     icon: "🗓️", adminOnly: true },
-  { href: "/ausencias",    label: "Registro de ausencias", icon: "🏖️" },
-  { href: "/asistencia",   label: "Asistencia",  icon: "✅", adminOnly: true },
-  { href: "/trabajadores", label: "Trabajadores",icon: "👥", adminOnly: true },
-  { href: "/festivos",     label: "Festivos",    icon: "🎉", adminOnly: true },
-  { href: "/mi-cuenta",    label: "Mi cuenta",   icon: "👤" },
-];
+import { NAV_ITEMS } from "./navItems";
 
 export default function Sidebar() {
   const path = usePathname();
   const { perfil, empresa, user, esSuperadmin, signOut } = useAuth();
   const isAdmin = perfil?.rol === "admin";
 
-  const items = ITEMS.filter((i) => {
+  const items = NAV_ITEMS.filter((i) => {
     if (i.superadminOnly) return esSuperadmin;
     if (i.adminOnly) return isAdmin || esSuperadmin;
     return true;
@@ -49,6 +37,7 @@ export default function Sidebar() {
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {items.map((it) => {
           const active = path === it.href || (it.href !== "/" && path?.startsWith(it.href));
+          const Icon = it.Icon;
           return (
             <Link
               key={it.href}
@@ -65,7 +54,7 @@ export default function Sidebar() {
                   : { color: "#1F2937" }
               }
             >
-              <span aria-hidden>{it.icon}</span>
+              <Icon size={18} strokeWidth={1.75} className="shrink-0" aria-hidden />
               {it.label}
             </Link>
           );
@@ -93,9 +82,10 @@ export default function Sidebar() {
         </div>
         <button
           onClick={() => signOut()}
-          className="w-full text-left text-xs px-3 py-2 rounded-lg hover:bg-[#EEF2F8] transition-colors"
+          className="w-full flex items-center gap-2 text-left text-xs px-3 py-2 rounded-lg hover:bg-[#EEF2F8] transition-colors"
           style={{ color: "#7B8794" }}
         >
+          <LogOut size={15} strokeWidth={1.75} className="shrink-0" aria-hidden />
           Cerrar sesión
         </button>
         <div className="text-[10px] text-left px-3 pt-1" style={{ color: "#7B8794" }}>v0.3</div>

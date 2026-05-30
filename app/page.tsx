@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { fmt, toISO, incluyeFecha, diasEntre, esFinDeSemana } from "@/lib/dates";
 import { addDays, parseISO, differenceInCalendarDays } from "date-fns";
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 // Categoría visual para el calendario del equipo
 type EstadoDia = "disponible" | "vacaciones" | "baja" | "otros" | "weekend";
@@ -140,13 +141,13 @@ function AdminDashboard({
           style={{ borderLeft: "4px solid #F5B700", background: "#FFFCEF" }}
         >
           <div className="flex items-center gap-3">
-            <span className="text-2xl">⏳</span>
+            <Clock size={24} strokeWidth={1.75} style={{ color: "#F5B700" }} />
             <div>
               <div className="font-semibold" style={{ color: "#062E73" }}>
                 {pendientes.length} ausencia{pendientes.length === 1 ? "" : "s"} pendiente{pendientes.length === 1 ? "" : "s"} de validar
               </div>
               <div className="text-xs" style={{ color: "#7B8794" }}>
-                Revísalas y márcalas como validadas ✓ cuando estén aprobadas.
+                Revísalas y márcalas como validadas <CheckCircle2 size={13} strokeWidth={2} className="inline align-text-bottom" style={{ color: "#16C784" }} /> cuando estén aprobadas.
               </div>
             </div>
           </div>
@@ -419,20 +420,20 @@ function CalendarioEquipo({
               </button>
             </div>
             <button
-              className="h-7 w-7 rounded-full inline-flex items-center justify-center text-sm"
+              className="h-7 w-7 rounded-full inline-flex items-center justify-center"
               style={{ background: "#EEF2F8", color: "#062E73" }}
               onClick={() => setOffset(offset - dias)}
               aria-label="Anterior"
             >
-              ‹
+              <ChevronLeft size={16} strokeWidth={2} />
             </button>
             <button
-              className="h-7 w-7 rounded-full inline-flex items-center justify-center text-sm"
+              className="h-7 w-7 rounded-full inline-flex items-center justify-center"
               style={{ background: "#EEF2F8", color: "#062E73" }}
               onClick={() => setOffset(offset + dias)}
               aria-label="Siguiente"
             >
-              ›
+              <ChevronRight size={16} strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -655,7 +656,7 @@ function TrabajadorDashboard({
                     {fmt(a.fecha_inicio, "dd/MM")} – {fmt(a.fecha_fin, "dd/MM")} ({diasEntre(a.fecha_inicio, a.fecha_fin)}d)
                   </span>
                 </div>
-                {a.aprobado ? <span className="text-xs font-semibold" title="Validada" style={{ color: "#16C784" }}>✓ Validada</span> : <span className="text-xs" style={{ color: "#F5B700" }}>Pendiente</span>}
+                {a.aprobado ? <span className="text-xs font-semibold inline-flex items-center gap-1" title="Validada" style={{ color: "#16C784" }}><CheckCircle2 size={13} strokeWidth={2} /> Validada</span> : <span className="text-xs inline-flex items-center gap-1" style={{ color: "#F5B700" }}><Clock size={13} strokeWidth={2} /> Pendiente</span>}
               </li>
             ))}
           </ul>

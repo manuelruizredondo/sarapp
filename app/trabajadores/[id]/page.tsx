@@ -15,6 +15,7 @@ import {
 } from "@/lib/types";
 import { diasEntre, diasLaborables, fmt, toISO } from "@/lib/dates";
 import HeatmapAnual from "@/components/HeatmapAnual";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function TrabajadorDetalle() {
   const { id } = useParams<{ id: string }>();
@@ -76,9 +77,13 @@ export default function TrabajadorDetalle() {
         subtitle={`${trabajador.puesto ?? ""}${trabajador.departamento ? ` · ${trabajador.departamento}` : ""}`}
         actions={
           <div className="flex items-center gap-2">
-            <button className="btn-ghost" onClick={() => setYear(year - 1)}>‹</button>
+            <button className="btn-ghost inline-flex items-center" onClick={() => setYear(year - 1)} aria-label="Año anterior">
+              <ChevronLeft size={18} strokeWidth={1.75} />
+            </button>
             <span className="text-sm font-semibold w-16 text-center">{year}</span>
-            <button className="btn-ghost" onClick={() => setYear(year + 1)}>›</button>
+            <button className="btn-ghost inline-flex items-center" onClick={() => setYear(year + 1)} aria-label="Año siguiente">
+              <ChevronRight size={18} strokeWidth={1.75} />
+            </button>
           </div>
         }
       />

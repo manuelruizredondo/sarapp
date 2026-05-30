@@ -21,6 +21,7 @@ import { diasEntre, diasLaborables, fmt, incluyeFecha, toISO } from "@/lib/dates
 import { useAuth } from "@/components/AuthProvider";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import { CheckCircle2, Clock, Download, Lock, Plane, Plus } from "lucide-react";
 
 type Form = {
   id?: string;
@@ -239,13 +240,15 @@ export default function AusenciasPage() {
         subtitle="Vacaciones, bajas médicas, permisos y formación"
         actions={
           <div className="flex gap-2">
-            <button className="btn-ghost" onClick={exportCSV}>⬇ Exportar CSV</button>
+            <button className="btn-ghost inline-flex items-center gap-1.5" onClick={exportCSV}>
+              <Download size={16} strokeWidth={1.75} /> Exportar CSV
+            </button>
             {isAdmin && (
-              <button className="btn-primary" onClick={() => {
+              <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => {
                 setForm({ trabajador_id: "", tipo: "vacaciones", fecha_inicio: today, fecha_fin: today, motivo: "", aprobado: false });
                 setOpenForm(true);
               }}>
-                + Registrar ausencia
+                <Plus size={16} strokeWidth={2} /> Registrar ausencia
               </button>
             )}
           </div>
@@ -286,7 +289,7 @@ export default function AusenciasPage() {
         ) : filtradas.length === 0 ? (
           <div className="p-5">
             <EmptyState
-              icon="🏖️"
+              icon={<Plane size={40} strokeWidth={1.5} />}
               title="No hay registros"
               hint={filtroTipo !== "todos" || filtroTrabajador !== "todos"
                 ? "Prueba a quitar los filtros."
@@ -331,14 +334,14 @@ export default function AusenciasPage() {
                           }
                           title={a.aprobado ? "Click para quitar la validación" : "Click para validar"}
                         >
-                          {a.aprobado ? <><span style={{ color: "#16C784" }} className="font-bold">✓</span> Validada</> : "⏳ Pendiente"}
+                          {a.aprobado ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} strokeWidth={2} style={{ color: "#16C784" }} /> Validada</span> : <span className="inline-flex items-center gap-1"><Clock size={14} strokeWidth={2} /> Pendiente</span>}
                         </button>
                       ) : (
                         <span className="badge" style={a.aprobado
                           ? { background: "#E6FBFB", color: "#062E73", borderColor: "#17C7C8" }
                           : { background: "#FFF8E1", color: "#7a5d00", borderColor: "#F5B700" }
                         }>
-                          {a.aprobado ? <><span style={{ color: "#16C784" }} className="font-bold">✓</span> Validada</> : "⏳ Pendiente"}
+                          {a.aprobado ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} strokeWidth={2} style={{ color: "#16C784" }} /> Validada</span> : <span className="inline-flex items-center gap-1"><Clock size={14} strokeWidth={2} /> Pendiente</span>}
                         </span>
                       )}
                     </td>
@@ -353,13 +356,13 @@ export default function AusenciasPage() {
                       {isAdmin && (
                         <>
                           <button
-                            className="btn-ghost mr-1"
+                            className="btn-ghost mr-1 inline-flex items-center gap-1"
                             onClick={() => startEdit(a)}
                             disabled={a.aprobado}
                             title={a.aprobado ? "Quita la validación ✓ antes de editar" : "Editar ausencia"}
                             style={a.aprobado ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
                           >
-                            {a.aprobado ? "🔒 " : ""}Editar
+                            {a.aprobado && <Lock size={13} strokeWidth={1.75} />}Editar
                           </button>
                           <button
                             className="btn-ghost"
@@ -428,7 +431,7 @@ export default function AusenciasPage() {
                   onChange={(e) => setForm({ ...form, aprobado: e.target.checked })}
                 />
                 <label htmlFor="aprobado" className="text-sm flex items-center gap-1">
-                  <span className="font-bold" style={{ color: "#16C784" }}>✓</span> Marcar como <strong>validada</strong> por el administrador
+                  <CheckCircle2 size={16} strokeWidth={2} style={{ color: "#16C784" }} /> Marcar como <strong>validada</strong> por el administrador
                 </label>
               </div>
               <div className="md:col-span-2 flex items-center justify-between pt-2">

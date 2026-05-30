@@ -10,6 +10,7 @@ import {
   superadminEditarEmpresa,
 } from "@/lib/data";
 import type { Empresa, PlanEmpresa } from "@/lib/types";
+import { Plus } from "lucide-react";
 
 type EmpresaConConteo = Empresa & { n_trabajadores?: number };
 
@@ -77,8 +78,8 @@ export default function SuperadminPage() {
         title="Empresas"
         subtitle="Panel de superadmin: alta y gestión de clientes del SaaS"
         actions={
-          <button className="btn-primary" onClick={() => setAdding(true)}>
-            + Nueva empresa
+          <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => setAdding(true)}>
+            <Plus size={16} strokeWidth={2} /> Nueva empresa
           </button>
         }
       />

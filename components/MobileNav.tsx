@@ -2,29 +2,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { LogoMark } from "./Logo";
-
-type Item = { href: string; label: string; icon: string; adminOnly?: boolean; superadminOnly?: boolean };
-
-const ITEMS: Item[] = [
-  { href: "/superadmin",   label: "Empresas",    icon: "🏢", superadminOnly: true },
-  { href: "/",             label: "Hoy",         icon: "🏠" },
-  { href: "/calendario",   label: "Calendario",  icon: "📅", adminOnly: true },
-  { href: "/resumen",      label: "Semanas",     icon: "🗓️", adminOnly: true },
-  { href: "/ausencias",    label: "Registro de ausencias", icon: "🏖️" },
-  { href: "/asistencia",   label: "Asistencia",  icon: "✅", adminOnly: true },
-  { href: "/trabajadores", label: "Trabajadores",icon: "👥", adminOnly: true },
-  { href: "/festivos",     label: "Festivos",    icon: "🎉", adminOnly: true },
-  { href: "/mi-cuenta",    label: "Mi cuenta",   icon: "👤" },
-];
+import { NAV_ITEMS } from "./navItems";
 
 export default function MobileNav() {
   const path = usePathname();
   const { perfil, empresa, user, esSuperadmin, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const isAdmin = perfil?.rol === "admin";
-  const items = ITEMS.filter((i) => {
+  const items = NAV_ITEMS.filter((i) => {
     if (i.superadminOnly) return esSuperadmin;
     if (i.adminOnly) return isAdmin || esSuperadmin;
     return true;
@@ -52,10 +40,10 @@ export default function MobileNav() {
         <button
           onClick={() => setOpen(true)}
           aria-label="Abrir menú"
-          className="text-xl px-2 py-1 rounded-lg"
+          className="px-2 py-1 rounded-lg"
           style={{ color: "#062E73" }}
         >
-          ☰
+          <Menu size={22} strokeWidth={1.75} />
         </button>
       </header>
 
@@ -75,11 +63,14 @@ export default function MobileNav() {
                 <LogoMark size={28} />
                 <span className="font-bold" style={{ color: "#062E73" }}>vacantia</span>
               </div>
-              <button onClick={() => setOpen(false)} aria-label="Cerrar" style={{ color: "#7B8794" }}>✕</button>
+              <button onClick={() => setOpen(false)} aria-label="Cerrar" style={{ color: "#7B8794" }}>
+                <X size={20} strokeWidth={1.75} />
+              </button>
             </div>
             <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
               {items.map((it) => {
                 const active = path === it.href || (it.href !== "/" && path?.startsWith(it.href));
+                const Icon = it.Icon;
                 return (
                   <Link
                     key={it.href}
@@ -92,7 +83,7 @@ export default function MobileNav() {
                         : { color: "#1F2937" }
                     }
                   >
-                    <span aria-hidden>{it.icon}</span>
+                    <Icon size={18} strokeWidth={1.75} className="shrink-0" aria-hidden />
                     {it.label}
                   </Link>
                 );
@@ -115,7 +106,8 @@ export default function MobileNav() {
                   </div>
                 </div>
               </div>
-              <button onClick={() => signOut()} className="btn-ghost w-full text-xs" style={{ color: "#E5484D" }}>
+              <button onClick={() => signOut()} className="btn-ghost w-full text-xs inline-flex items-center justify-center gap-2" style={{ color: "#E5484D" }}>
+                <LogOut size={15} strokeWidth={1.75} />
                 Cerrar sesión
               </button>
             </div>

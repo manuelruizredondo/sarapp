@@ -17,6 +17,7 @@ import {
   LOCALIDADES,
   type FestivoEntry,
 } from "@/lib/festivosES";
+import { ListChecks, PartyPopper, Plus } from "lucide-react";
 
 export default function FestivosPage() {
   const { perfil, empresa, esSuperadmin } = useAuth();
@@ -83,11 +84,11 @@ export default function FestivosPage() {
         subtitle="Los festivos no cuentan como días de vacaciones consumidos"
         actions={
           <div className="flex gap-2">
-            <button className="btn-ghost" onClick={() => setCatalogoAbierto(true)}>
-              + Catálogo España
+            <button className="btn-ghost inline-flex items-center gap-1.5" onClick={() => setCatalogoAbierto(true)}>
+              <ListChecks size={16} strokeWidth={1.75} /> Catálogo España
             </button>
-            <button className="btn-primary" onClick={() => setAdding(true)}>
-              + Nuevo festivo
+            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => setAdding(true)}>
+              <Plus size={16} strokeWidth={2} /> Nuevo festivo
             </button>
           </div>
         }
@@ -149,7 +150,7 @@ export default function FestivosPage() {
                 {porAnio[+y].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((f) => (
                   <li key={f.id} className="px-4 md:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <span className="text-xl md:text-2xl shrink-0">🎉</span>
+                      <PartyPopper size={22} strokeWidth={1.75} className="shrink-0" style={{ color: "#17C7C8" }} />
                       <div className="min-w-0">
                         <div className="font-medium text-sm truncate">{f.nombre}</div>
                         <div className="text-xs truncate" style={{ color: "#7B8794" }}>{fmt(f.fecha, "EEEE d 'de' MMMM yyyy")}</div>

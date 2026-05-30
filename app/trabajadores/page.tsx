@@ -17,6 +17,7 @@ import { diasLaborables } from "@/lib/dates";
 import ColorPicker from "@/components/ColorPicker";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import { Plus, Users } from "lucide-react";
 
 type Form = Partial<Trabajador> & { id?: string; password?: string };
 
@@ -127,7 +128,7 @@ export default function TrabajadoresPage() {
         subtitle="Alta, edición y acceso a la app"
         actions={
           <button
-            className="btn-primary"
+            className="btn-primary inline-flex items-center gap-1.5"
             onClick={() =>
               setEditing({
                 nombre: "",
@@ -143,7 +144,7 @@ export default function TrabajadoresPage() {
               })
             }
           >
-            + Nuevo trabajador
+            <Plus size={16} strokeWidth={2} /> Nuevo trabajador
           </button>
         }
       />
@@ -154,7 +155,7 @@ export default function TrabajadoresPage() {
         ) : items.length === 0 ? (
           <div className="p-5">
             <EmptyState
-              icon="👥"
+              icon={<Users size={40} strokeWidth={1.5} />}
               title="Aún no hay trabajadores"
               hint="Crea el primer trabajador con el botón de arriba. La app generará automáticamente sus credenciales de acceso."
             />

@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { diasDelMes, fmt, incluyeFecha, nombreMes, toISO } from "@/lib/dates";
 import { startOfWeek, getDay, endOfMonth, startOfMonth } from "date-fns";
+import { CheckCircle2, ChevronLeft, ChevronRight, PartyPopper } from "lucide-react";
 
 // Devuelve un color de texto legible (negro o blanco) sobre el fondo dado
 function textoSobre(hex: string): string {
@@ -90,11 +91,15 @@ export default function CalendarioPage() {
         subtitle="Vista mensual de todas las ausencias"
         actions={
           <div className="flex items-center gap-2">
-            <button className="btn-ghost" onClick={prevMonth}>‹</button>
+            <button className="btn-ghost inline-flex items-center" onClick={prevMonth} aria-label="Mes anterior">
+              <ChevronLeft size={18} strokeWidth={1.75} />
+            </button>
             <div className="text-sm font-semibold w-40 text-center capitalize">
               {nombreMes(month, year)}
             </div>
-            <button className="btn-ghost" onClick={nextMonth}>›</button>
+            <button className="btn-ghost inline-flex items-center" onClick={nextMonth} aria-label="Mes siguiente">
+              <ChevronRight size={18} strokeWidth={1.75} />
+            </button>
             <button
               className="btn-ghost ml-2 text-xs"
               onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); }}
@@ -128,7 +133,7 @@ export default function CalendarioPage() {
         ))}
         <span className="mx-2" style={{ color: "#E5EAF2" }}>|</span>
         <div className="flex items-center gap-1.5">
-          <span className="font-bold" style={{ color: "#16C784" }}>✓</span><span style={{ color: "#1F2937" }}>Validada</span>
+          <CheckCircle2 size={14} strokeWidth={2} style={{ color: "#16C784" }} /><span style={{ color: "#1F2937" }}>Validada</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span
@@ -180,7 +185,7 @@ export default function CalendarioPage() {
                       {d.getDate()}
                     </div>
                     {festivo && (
-                      <span className="text-[10px]" title={festivo.nombre}>🎉</span>
+                      <PartyPopper size={12} strokeWidth={1.75} className="text-amber-600" />
                     )}
                   </div>
                   {festivo && (
@@ -214,7 +219,7 @@ export default function CalendarioPage() {
                             style={{ outline: `1px solid ${fg}` }}
                           />
                           <span className="truncate">{t?.nombre ?? "—"}</span>
-                          {!pendiente && <span className="ml-auto font-bold">✓</span>}
+                          {!pendiente && <CheckCircle2 size={12} strokeWidth={2.5} className="ml-auto shrink-0" />}
                         </div>
                       );
                     })}

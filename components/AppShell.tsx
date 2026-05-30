@@ -7,6 +7,7 @@ import SupabaseBanner from "./SupabaseBanner";
 import { useAuth } from "./AuthProvider";
 import { LogoMark } from "./Logo";
 import Spinner from "./Spinner";
+import { Ban } from "lucide-react";
 
 // Pantalla de carga a pantalla completa (logo + bolas orbitando).
 function LoaderScreen() {
@@ -91,7 +92,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="card max-w-md p-6 text-center">
-          <div className="text-2xl mb-2">🚫</div>
+          <div className="mb-2 flex justify-center" style={{ color: "#E5484D" }}>
+            <Ban size={36} strokeWidth={1.75} />
+          </div>
           <h2 className="font-semibold mb-1" style={{ color: "#062E73" }}>Sin acceso asignado</h2>
           <p className="text-sm mb-4" style={{ color: "#7B8794" }}>
             Tu usuario <strong>{user.email}</strong> está autenticado pero no está vinculado a ninguna
