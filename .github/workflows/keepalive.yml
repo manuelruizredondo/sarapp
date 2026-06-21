@@ -1,0 +1,37 @@
+name: Supabase keep-alive
+
+# Evita que Supabase pause el proyecto (plan free) por inactividad (~7 días).
+# Hace una petición ligera a la API REST cada 3 días, lo que cuenta como
+# actividad real contra la base de datos y reinicia el contador de inactividad.
+
+on:
+  schedule:
+    # Cada 3 días a las 06:17 UTC (margen de sobra bajo el límite de 7 días).
+    - cron: "17 6 */3 * *"
+  workflow_dispatch: {} # permite lanzarlo manualmente desde la pestaña Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Faltan los secrets SUPABASE_URL y/o SUPABASE_ANON_KEY en el repositorio."
+            exit 1
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/empresas?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Respuesta de Supabase: HTTP $code"
+          # Cualquier respuesta < 500 (incluido 200 con [] por RLS) ya ha
+          # ejecutado una consulta contra Postgres y cuenta como actividad.
+          if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+            echo "::error::Supabase no respondió correctamente (HTTP $code)."
+            exit 1
+          fi
+          echo "Keep-alive OK."
